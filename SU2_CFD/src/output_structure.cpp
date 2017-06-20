@@ -6989,7 +6989,7 @@ void COutput::SetResult_Files(CSolver ****solver_container, CGeometry ***geometr
 
 			if (rank == MASTER_NODE) cout << "Writing Inria native restart file." << endl;
       SetInriaRestart(config[iZone], geometry[iZone][MESH_0], solver_container[iZone][MESH_0] , iZone);
-			//WriteInriaOutputs(config[iZone], geometry[iZone][MESH_0], solver_container[iZone][MESH_0] , iZone);
+			WriteInriaOutputs(config[iZone], geometry[iZone][MESH_0], solver_container[iZone][MESH_0] , iZone);
 
 
 
