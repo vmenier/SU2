@@ -164,6 +164,7 @@ private:
   bool Move;                          /*!< \brief This flag indicates if the point is going to be move in the grid deformation process. */
   unsigned short color;               /*!< \brief Color of the point in the partitioning strategy. */
   su2double Wall_Distance;            /*!< \brief Distance to the nearest wall. */
+  unsigned long Vertex_nearWall;	  /*!< \brief Global index of the wall vertex nearest to the cell >*/
   su2double SharpEdge_Distance;       /*!< \brief Distance to a sharp edge. */
   su2double Curvature;                /*!< \brief Value of the surface curvature (SU2_GEO). */
   unsigned long GlobalIndex;          /*!< \brief Global index in the parallel simulation. */
@@ -221,6 +222,9 @@ public:
 	 * \param[in] val_distance - Value of the distance.
 	 */
 	void SetWall_Distance(su2double val_distance);
+
+	void SetVertex_nearWall(unsigned long val_Vertex_nearWall);
+
   
   /*!
 	 * \brief Set the value of the distance to a sharp edge.
@@ -233,7 +237,9 @@ public:
 	 * \return Value of the distance to the nearest wall.
 	 */
 	su2double GetWall_Distance(void);
-	
+
+	unsigned long GetVertex_nearWall(void);
+
   /*!
 	 * \brief Set the value of the curvature at a surface node.
 	 * \param[in] val_curvature - Value of the curvature.

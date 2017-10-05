@@ -48,6 +48,7 @@ ___bin_SU2_DEF_LDADD = ../../Common/lib/libSU2.a \
   ../../SU2_CFD/src/___bin_SU2_CFD-output_tecplot.o \
   ../../SU2_CFD/src/___bin_SU2_CFD-output_fieldview.o \
   ../../SU2_CFD/src/___bin_SU2_CFD-output_su2.o \
+  ../../SU2_CFD/src/___bin_SU2_CFD-output_inria.o \
   ../../SU2_CFD/src/___bin_SU2_CFD-output_paraview.o \
   ../../SU2_CFD/src/___bin_SU2_CFD-solver_structure.o \
   ../../SU2_CFD/src/___bin_SU2_CFD-variable_structure.o

@@ -163,6 +163,17 @@ fi
 AM_CONDITIONAL(BUILD_TECIO, test x$enabletecio = xyes)
 AC_CONFIG_FILES([externals/tecio/Makefile])
 
+# Inria
+CONFIGURE_INRIA
+if (test $enableinria = yes); then
+  su2_externals_INCLUDES="-DHAVE_INRIA $INRIA_INCLUDE $su2_externals_INCLUDES"
+  su2_externals_LIBS="$INRIA_LIB $su2_externals_LIBS"
+else
+  su2_externals_INCLUDES="$su2_externals_INCLUDES"
+fi
+AM_CONDITIONAL(BUILD_INRIA, test x$enableinria = xyes)
+AC_CONFIG_FILES([externals/inria/Makefile])
+
 # Metis
 CONFIGURE_METIS
 if (test $enablemetis = yes); then

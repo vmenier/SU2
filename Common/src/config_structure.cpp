@@ -125,7 +125,7 @@ void CConfig::SetPointersNull(void) {
   Marker_CfgFile_KindBC=NULL;       Marker_All_KindBC=NULL;
   /*--- Marker Pointers ---*/
 
-  Marker_Euler = NULL;            Marker_FarField = NULL;           Marker_Custom = NULL;
+  Marker_Euler = NULL;            Marker_FarField = NULL;           Marker_Custom = NULL;  Marker_Thrust = NULL;
   Marker_SymWall = NULL;          Marker_Pressure = NULL;           Marker_PerBound = NULL;
   Marker_PerDonor = NULL;         Marker_NearFieldBound = NULL;     Marker_InterfaceBound = NULL;
   Marker_Dirichlet = NULL;        Marker_Inlet = NULL;
@@ -138,7 +138,7 @@ void CConfig::SetPointersNull(void) {
   Marker_All_TagBound = NULL;     Marker_CfgFile_TagBound = NULL;   Marker_All_KindBC = NULL;
   Marker_CfgFile_KindBC = NULL;   Marker_All_SendRecv = NULL;       Marker_All_PerBound = NULL;
   Marker_FSIinterface = NULL;     Marker_All_FSIinterface=NULL; Marker_Riemann = NULL;
-  Marker_Load = NULL;
+  Marker_Load = NULL;             Marker_WallTemp = NULL; 
   /*--- Boundary Condition settings ---*/
 
   Dirichlet_Value = NULL;         Exhaust_Temperature_Target = NULL;
@@ -148,6 +148,7 @@ void CConfig::SetPointersNull(void) {
   Inflow_Pressure = NULL;         Bleed_Temperature_Target = NULL;  Bleed_Temperature = NULL;
   Bleed_MassFlow_Target = NULL;   Bleed_MassFlow = NULL;            Exhaust_Pressure = NULL; Exhaust_Temperature = NULL;
   Bleed_Pressure = NULL;          Outlet_Pressure = NULL;           Isothermal_Temperature = NULL;
+	Wall_Temp  = NULL;              Wall_Temp_Locations = NULL;
   Heat_Flux = NULL;               Displ_Value = NULL;               Load_Value = NULL;
   FlowLoad_Value = NULL;          Periodic_RotCenter = NULL;        Periodic_RotAngles = NULL;
   Periodic_Translation = NULL;    Periodic_Center = NULL;           Periodic_Rotation = NULL;
@@ -156,6 +157,8 @@ void CConfig::SetPointersNull(void) {
   Load_Dir = NULL;	          Load_Dir_Value = NULL;          Load_Dir_Multiplier = NULL;
   Load_Sine_Dir = NULL;	      Load_Sine_Amplitude = NULL;     Load_Sine_Frequency = NULL;
 
+	WallTemp = NULL;
+	
   /*--- Miscellaneous/unsorted ---*/
 
   Aeroelastic_plunge = NULL;    Aeroelastic_pitch = NULL;
@@ -163,6 +166,8 @@ void CConfig::SetPointersNull(void) {
   Velocity_FreeStream = NULL;
   RefOriginMoment = NULL;
   CFL_AdaptParam = NULL;            CFL=NULL;
+	Hard_Limiting_Param = NULL;
+	CFL_LocalAdaptParam = NULL;
   PlaneTag = NULL;
   Kappa_Flow = NULL;    Kappa_AdjFlow = NULL;
   Section_Location = NULL;
@@ -172,6 +177,9 @@ void CConfig::SetPointersNull(void) {
   Hold_GridFixed_Coord=NULL;
   EA_IntLimit=NULL;
   RK_Alpha_Step=NULL;
+
+	BSplineCoefs = NULL;
+	BSplineCoefs_DV = NULL;
 
   /*--- Moving mesh pointers ---*/
 
@@ -250,6 +258,7 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   addBoolOption("GRAVITY_FORCE", GravityForce, false);
   /* DESCRIPTION: Perform a low fidelity simulation */
   addBoolOption("LOW_FIDELITY_SIMULATION", LowFidelitySim, false);
+  addBoolOption("SAVE_DEF_FILE", SaveDefFile, false);
   /*!\brief RESTART_SOL \n DESCRIPTION: Restart solution from native solution file \n Options: NO, YES \ingroup Config */
   addBoolOption("RESTART_SOL", Restart, false);
   /*!\brief SYSTEM_MEASUREMENTS \n DESCRIPTION: System of measurements \n OPTIONS: see \link Measurements_Map \endlink \n DEFAULT: SI \ingroup Config*/
@@ -329,6 +338,9 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   addEnumOption("FREESTREAM_OPTION", Kind_FreeStreamOption, FreeStreamOption_Map, TEMPERATURE_FS);
   /*!\brief FREESTREAM_PRESSURE\n DESCRIPTION: Free-stream pressure (101325.0 N/m^2 by default) \ingroup Config*/
   addDoubleOption("FREESTREAM_PRESSURE", Pressure_FreeStream, 101325.0);
+
+	addDoubleOption("SA_PRODUCTION_FACTOR", SA_Production_Factor, 1.0);
+
   /*!\brief FREESTREAM_DENSITY\n DESCRIPTION: Free-stream density (1.2886 Kg/m^3 (air), 998.2 Kg/m^3 (water)) \n DEFAULT -1.0 (calculated from others) \ingroup Config*/
   addDoubleOption("FREESTREAM_DENSITY", Density_FreeStream, -1.0);
   /*!\brief FREESTREAM_TEMPERATURE\n DESCRIPTION: Free-stream temperature (288.15 K by default) \ingroup Config*/
@@ -405,8 +417,14 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /*!\brief GEO_MARKER\n DESCRIPTION: Marker(s) of the surface where evaluate the geometrical functions \ingroup Config*/
   addStringListOption("GEO_MARKER", nMarker_GeoEval, Marker_GeoEval);
   /*!\brief MARKER_EULER\n DESCRIPTION: Euler wall boundary marker(s) \ingroup Config*/
+
+
   addStringListOption("MARKER_EULER", nMarker_Euler, Marker_Euler);
   /*!\brief MARKER_FAR\n DESCRIPTION: Far-field boundary marker(s) \ingroup Config*/
+
+
+	addStringListOption("MARKER_WALL_TEMP", nMarker_WallTemp, Marker_WallTemp);
+	
   addStringListOption("MARKER_FAR", nMarker_FarField, Marker_FarField);
   /*!\brief MARKER_SYM\n DESCRIPTION: Symmetry boundary condition \ingroup Config*/
   addStringListOption("MARKER_SYM", nMarker_SymWall, Marker_SymWall);
@@ -424,6 +442,10 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   addStringListOption("MARKER_NEUMANN", nMarker_Neumann, Marker_Neumann);
   /* DESCRIPTION: Custom boundary marker(s) */
   addStringListOption("MARKER_CUSTOM", nMarker_Custom, Marker_Custom);
+
+  /*!\brief MARKER_THRUST\n DESCRIPTION: Marker(s) of the surfaces used for Thrust computation  \ingroup Config*/
+  addStringListOption("MARKER_THRUST", nMarker_Thrust, Marker_Thrust);
+
   /* DESCRIPTION: Periodic boundary marker(s) for use with SU2_MSH
    Format: ( periodic marker, donor marker, rotation_center_x, rotation_center_y,
    rotation_center_z, rotation_angle_x-axis, rotation_angle_y-axis,
@@ -528,12 +550,33 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   addDoubleOption("MAX_DELTA_TIME", Max_DeltaTime, 1000000);
   /* DESCRIPTION: Activate The adaptive CFL number. */
   addBoolOption("CFL_ADAPT", CFL_Adapt, false);
+  /* DESCRIPTION: Activate The adaptive CFL number. */
+  addBoolOption("CFL_ADAPT_LOCAL", Local_CFL_Adapt, false);
+  /* DESCRIPTION: Activate The adaptive CFL number. */
+  addBoolOption("RELAXATION_LOCAL", Local_Relax_Factor, false);
+
+
+
+
+  /* !\brief CFL_ADAPT_PARAM
+   * DESCRIPTION: Parameters of the adaptive CFL number (factor down, factor up, CFL limit (min and max) )
+   * Factor down generally >1.0, factor up generally < 1.0 to cause the CFL to increase when residual is decreasing,
+   * and decrease when the residual is increasing or stalled. \ingroup Config*/
+  default_vec_4d[0] = 0.0; default_vec_4d[1] = 0.0; default_vec_4d[2] = 1.0; default_vec_4d[3] = 100.0;
+  addDoubleArrayOption("CFL_ADAPT_LOCAL_PARAM", 4, CFL_LocalAdaptParam, default_vec_4d);
+	
   /* !\brief CFL_ADAPT_PARAM
    * DESCRIPTION: Parameters of the adaptive CFL number (factor down, factor up, CFL limit (min and max) )
    * Factor down generally >1.0, factor up generally < 1.0 to cause the CFL to increase when residual is decreasing,
    * and decrease when the residual is increasing or stalled. \ingroup Config*/
   default_vec_4d[0] = 0.0; default_vec_4d[1] = 0.0; default_vec_4d[2] = 1.0; default_vec_4d[3] = 100.0;
   addDoubleArrayOption("CFL_ADAPT_PARAM", 4, CFL_AdaptParam, default_vec_4d);
+
+  default_vec_2d[0] = 0.25; default_vec_2d[1] = 1e-5;
+  /* DESCRIPTION: Definition of the airfoil section */
+  addDoubleArrayOption("HARD_LIMITING_PARAM", 2, Hard_Limiting_Param, default_vec_2d);
+
+	
   /* DESCRIPTION: Reduction factor of the CFL coefficient in the adjoint problem */
   addDoubleOption("CFL_REDUCTION_ADJFLOW", CFLRedCoeff_AdjFlow, 0.8);
   /* DESCRIPTION: Reduction factor of the CFL coefficient in the level set problem */
@@ -636,6 +679,8 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   addDoubleOption("RESIDUAL_REDUCTION", OrderMagResidual, 3.0);
   /*!\brief RESIDUAL_MINVAL\n DESCRIPTION: Min value of the residual (log10 of the residual)\n DEFAULT: -8.0 \ingroup Config*/
   addDoubleOption("RESIDUAL_MINVAL", MinLogResidual, -8.0);
+  /*!\brief RESIDUAL_MAXVAL\n DESCRIPTION: Max value of the residual (log10 of the residual)\n DEFAULT: -8.0 \ingroup Config*/
+  addDoubleOption("RESIDUAL_MAXVAL", MaxLogResidual, 1000.0);
   /* DESCRIPTION: Residual reduction (order of magnitude with respect to the initial value) */
   addDoubleOption("RESIDUAL_REDUCTION_FSI", OrderMagResidualFSI, 3.0);
   /* DESCRIPTION: Min value of the residual (log10 of the residual) */
@@ -813,6 +858,9 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   addEnumOption("MESH_FORMAT", Mesh_FileFormat, Input_Map, SU2);
   /* DESCRIPTION:  Mesh input file */
   addStringOption("MESH_FILENAME", Mesh_FileName, string("mesh.su2"));
+
+  addStringOption("THRUST_FILENAME", Thrust_FileName, string("thrust.dat"));
+	
   /*!\brief MESH_OUT_FILENAME \n DESCRIPTION: Mesh output file name. Used when converting, scaling, or deforming a mesh. \n DEFAULT: mesh_out.su2 \ingroup Config*/
   addStringOption("MESH_OUT_FILENAME", Mesh_Out_FileName, string("mesh_out.su2"));
 
@@ -918,7 +966,21 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
    *  \n DESCRIPTION: Verbosity level for console output  \ingroup Config*/
   addEnumOption("CONSOLE_OUTPUT_VERBOSITY", Console_Output_Verb, Verb_Map, VERB_HIGH);
 
+  /*!\brief WRT_INRIA_MESH
+   *  \n DESCRIPTION: Output Inria mesh file  \ingroup Config*/
+  addBoolOption("WRT_INRIA_MESH", Wrt_InriaMesh, false);
 
+  /*!\brief MESH_DECOMPSITION
+   *  \n DESCRIPTION: Output Inria mesh file  \ingroup Config*/
+  addBoolOption("MESH_DECOMPOSITION", Mesh_Decomposition, false);
+
+
+	
+  /* DESCRIPTION: Reduction factor of the CFL coefficient in the adjoint problem */
+  addDoubleListOption("WALL_TEMP_DEFINITION",  nWallTemp, WallTemp);
+
+	printf("WALL TEMP : %d values\n", SU2_TYPE::Int(nWallTemp));
+	
   /*!\par CONFIG_CATEGORY: Dynamic mesh definition \ingroup Config*/
   /*--- Options related to dynamic meshes ---*/
 
@@ -1100,6 +1162,13 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
 	addDVParamOption("DV_PARAM", nDV, ParamDV, FFDTag, Design_Variable);
   /* DESCRIPTION: New value of the shape deformation */
   addDVValueOption("DV_VALUE", nDV_Value, DV_Value, nDV, ParamDV, Design_Variable);
+
+  addDoubleListOption("BSPLINECOEFS", nBSplineCoefs, BSplineCoefs);
+	addUShortListOption("BSPLINECOEFS_DV", nBSplineCoefs, BSplineCoefs_DV);
+	
+	//printf("nBSplineCoefs = %d\n", nBSplineCoefs);
+	//exit(1);
+	
 	/* DESCRIPTION: Hold the grid fixed in a region */
   addBoolOption("HOLD_GRID_FIXED", Hold_GridFixed, false);
 	default_vec_6d[0] = -1E15; default_vec_6d[1] = -1E15; default_vec_6d[2] = -1E15;
@@ -1368,6 +1437,23 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /* DESCRIPTION: Activate ParMETIS mode for testing */
   addBoolOption("PARMETIS", ParMETIS, false);
   
+	/* AMG MESH ADAPTATION : PYTHON OPTIONS */
+	addPythonOption("ADAP_COMPLEXITIES");
+	addPythonOption("ADAP_SUBITE");
+	addPythonOption("ADAP_RESTART");
+	addPythonOption("ADAP_INI_RESTART_FILE");
+	addPythonOption("ADAP_INI_SENSOR_FILE");
+	addPythonOption("ADAP_INI_MESH_FILE");
+	addPythonOption("OUTPUT_LOG");
+	addPythonOption("ADAP_BACK");
+	addPythonOption("ADAP_BACK_NAME");
+
+	addPythonOption("ADAP_HMAX");
+	addPythonOption("ADAP_HMIN");
+	addPythonOption("ADAP_HGRAD");
+	
+	addPythonOption("ADAP_PATH");
+	
   /* END_CONFIG_OPTIONS */
 
 }
@@ -1387,7 +1473,7 @@ void CConfig::SetConfig_Parsing(char case_filename[MAX_STRING_SIZE]) {
   case_file.open(case_filename, ios::in);
 
   if (case_file.fail()) {
-    if (rank == MASTER_NODE) cout << endl << "The configuration file (.cfg) is missing!!" << endl << endl;
+    if (rank == MASTER_NODE) cout << endl << "SU2 DARPA : The configuration file (.cfg) is missing!!" << endl << endl;
     exit(EXIT_FAILURE);
   }
 
@@ -2582,7 +2668,7 @@ void CConfig::SetPostprocessing(unsigned short val_software, unsigned short val_
 
 void CConfig::SetMarkers(unsigned short val_software) {
 
-  unsigned short iMarker_All, iMarker_CfgFile, iMarker_Euler, iMarker_Custom,
+  unsigned short iMarker_All, iMarker_CfgFile, iMarker_Euler, iMarker_Custom, iMarker_Thrust,
   iMarker_FarField, iMarker_SymWall, iMarker_Pressure, iMarker_PerBound,
   iMarker_NearFieldBound, iMarker_InterfaceBound, iMarker_Dirichlet,
   iMarker_Inlet, iMarker_Riemann, iMarker_NRBC, iMarker_Outlet, iMarker_Isothermal,
@@ -2591,14 +2677,32 @@ void CConfig::SetMarkers(unsigned short val_software) {
   iMarker_Monitoring, iMarker_Designing, iMarker_GeoEval, iMarker_Plotting,
   iMarker_DV, iMarker_Moving, iMarker_Supersonic_Inlet, iMarker_Supersonic_Outlet,
   iMarker_Clamped, iMarker_FSIinterface, iMarker_Load_Dir, iMarker_Load_Sine,
-  iMarker_ActDisk_Inlet, iMarker_ActDisk_Outlet, iMarker_Out_1D;
+  iMarker_ActDisk_Inlet, iMarker_ActDisk_Outlet, iMarker_Out_1D, iMarker_WallTemp;
 
   int size = SINGLE_NODE;
+
+	unsigned short i;
   
 #ifdef HAVE_MPI
   if (val_software != SU2_MSH)
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 #endif
+
+	/*--- Setup wall temp BC ---*/
+	
+	if ( nMarker_WallTemp > 0 ) {
+		
+	  if ( nWallTemp <= 0 ) {
+			cout <<"A wall temperature marker was given but no wall temperature distribution !"<< endl;
+		  exit(EXIT_FAILURE);
+		}
+		
+		for (i=0; i<nWallTemp; i++) {
+			printf ("%d : %lf\n", i, SU2_TYPE::GetValue(WallTemp[i]));
+		}
+		
+		//exit(1);
+	}
 
   /*--- Compute the total number of markers in the config file ---*/
   
@@ -2608,9 +2712,10 @@ void CConfig::SetMarkers(unsigned short val_software) {
   nMarker_NRBC + nMarker_Outlet + nMarker_Isothermal + nMarker_HeatFlux +
   nMarker_EngineInflow + nMarker_EngineBleed + nMarker_EngineExhaust +
   nMarker_Supersonic_Inlet + nMarker_Supersonic_Outlet + nMarker_Displacement + nMarker_Load +
-  nMarker_FlowLoad + nMarker_Custom +
+  nMarker_FlowLoad + nMarker_Custom + nMarker_Thrust +
   nMarker_Clamped + nMarker_Load_Sine + nMarker_Load_Dir +
-  nMarker_ActDisk_Inlet + nMarker_ActDisk_Outlet + nMarker_Out_1D;
+  nMarker_ActDisk_Inlet + nMarker_ActDisk_Outlet + nMarker_Out_1D + nMarker_WallTemp;
+	
   
   /*--- Add the possible send/receive domains ---*/
 
@@ -2619,6 +2724,8 @@ void CConfig::SetMarkers(unsigned short val_software) {
   /*--- Basic dimensionalization of the markers (worst scenario) ---*/
 
   nMarker_All = nMarker_Max;
+
+	
 
   /*--- Allocate the memory (markers in each domain) ---*/
   
@@ -2677,10 +2784,19 @@ void CConfig::SetMarkers(unsigned short val_software) {
     Marker_CfgFile_PerBound[iMarker_CfgFile]   = 0;
     Marker_CfgFile_Out_1D[iMarker_CfgFile]     = 0;
   }
-
+	
   /*--- Populate the marker information in the config file (all domains) ---*/
 
   iMarker_CfgFile = 0;
+
+	printf("WALL TEMP n = %d\n", nMarker_WallTemp);
+
+  for (iMarker_WallTemp = 0; iMarker_WallTemp < nMarker_WallTemp; iMarker_WallTemp++) {
+    Marker_CfgFile_TagBound[iMarker_CfgFile] = Marker_WallTemp[iMarker_WallTemp];
+    Marker_CfgFile_KindBC[iMarker_CfgFile] = WALL_TEMP;
+    iMarker_CfgFile++;
+  }
+	
   for (iMarker_Euler = 0; iMarker_Euler < nMarker_Euler; iMarker_Euler++) {
     Marker_CfgFile_TagBound[iMarker_CfgFile] = Marker_Euler[iMarker_Euler];
     Marker_CfgFile_KindBC[iMarker_CfgFile] = EULER_WALL;
@@ -2819,6 +2935,12 @@ void CConfig::SetMarkers(unsigned short val_software) {
     iMarker_CfgFile++;
   }
 
+	for (iMarker_Thrust = 0; iMarker_Thrust < nMarker_Thrust; iMarker_Thrust++) {
+    Marker_CfgFile_TagBound[iMarker_CfgFile] = Marker_Thrust[iMarker_Thrust];
+    Marker_CfgFile_KindBC[iMarker_CfgFile] = THRUST_BOUNDARY;
+    iMarker_CfgFile++;
+  }
+
   for (iMarker_Outlet = 0; iMarker_Outlet < nMarker_Outlet; iMarker_Outlet++) {
     Marker_CfgFile_TagBound[iMarker_CfgFile] = Marker_Outlet[iMarker_Outlet];
     Marker_CfgFile_KindBC[iMarker_CfgFile] = OUTLET_FLOW;
@@ -2938,7 +3060,7 @@ void CConfig::SetMarkers(unsigned short val_software) {
 
 void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
 
-  unsigned short iMarker_Euler, iMarker_Custom, iMarker_FarField,
+  unsigned short iMarker_Euler, iMarker_Custom, iMarker_Thrust, iMarker_FarField,
   iMarker_SymWall, iMarker_PerBound, iMarker_Pressure, iMarker_NearFieldBound,
   iMarker_InterfaceBound, iMarker_Dirichlet, iMarker_Inlet, iMarker_Riemann,
   iMarker_NRBC, iMarker_MixBound, iMarker_Outlet, iMarker_Isothermal, iMarker_HeatFlux,
@@ -2947,7 +3069,7 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
   iMarker_Designing, iMarker_GeoEval, iMarker_Plotting, iMarker_DV, iDV_Value,
   iMarker_FSIinterface, iMarker_Load_Dir, iMarker_Load_Sine, iMarker_Clamped,
   iMarker_Moving, iMarker_Supersonic_Inlet, iMarker_Supersonic_Outlet, iMarker_ActDisk_Inlet,
-  iMarker_ActDisk_Outlet;
+  iMarker_ActDisk_Outlet, iMarker_WallTemp;
   
   
   /*--- WARNING: when compiling on Windows, ctime() is not available. Comment out
@@ -3267,6 +3389,7 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
           case FFD_CAMBER:            cout << "FFD (camber) <-> "; break;
           case FFD_THICKNESS:         cout << "FFD (thickness) <-> "; break;
           case CUSTOM:                cout << "Custom DV <-> "; break;
+					case BSPLINECOEF:           cout << "BSPLINE DV <-> "; break;
         }
         
         for (iMarker_DV = 0; iMarker_DV < nMarker_DV; iMarker_DV++) {
@@ -3300,6 +3423,7 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
             (Design_Variable[iDV] ==  FFD_ROTATION) ||
             (Design_Variable[iDV] ==  FFD_CONTROL_SURFACE) ) nParamDV = 7;
         if (Design_Variable[iDV] ==  CUSTOM) nParamDV = 1;
+				if (Design_Variable[iDV] ==  BSPLINECOEF) nParamDV = 1;
 
         for (unsigned short iParamDV = 0; iParamDV < nParamDV; iParamDV++) {
 
@@ -3379,6 +3503,7 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
       case FORCE_Y_COEFFICIENT:     cout << "Y-force objective function." << endl; break;
       case FORCE_Z_COEFFICIENT:     cout << "Z-force objective function." << endl; break;
       case THRUST_COEFFICIENT:      cout << "Thrust objective function." << endl; break;
+			case THRUST_NOZZLE:           cout << "Nozzle thrust objective function." << endl; break;
       case TORQUE_COEFFICIENT:      cout << "Torque efficiency objective function." << endl; break;
       case TOTAL_HEATFLUX:          cout << "Total heat flux objective function." << endl; break;
       case MAXIMUM_HEATFLUX:        cout << "Maximum heat flux objective function." << endl; break;
@@ -3683,9 +3808,22 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
 
     if ((Kind_Solver != FEM_ELASTICITY) && (Kind_Solver != HEAT_EQUATION) && (Kind_Solver != WAVE_EQUATION)) {
 
-      if (!CFL_Adapt) cout << "No CFL adaptation." << endl;
-      else cout << "CFL adaptation. Factor down: "<< CFL_AdaptParam[0] <<", factor up: "<< CFL_AdaptParam[1]
+      //if (!CFL_Adapt) cout << "No CFL adaptation." << endl;
+      //else cout << "CFL adaptation. Factor down: "<< CFL_AdaptParam[0] <<", factor up: "<< CFL_AdaptParam[1]
+      //  <<",\n                lower limit: "<< CFL_AdaptParam[2] <<", upper limit: " << CFL_AdaptParam[3] <<"."<< endl;
+
+
+      if (Local_CFL_Adapt) {
+				cout << "Local CFL adaptation. Factor down: "<< CFL_LocalAdaptParam[0] <<", factor up: "<< CFL_LocalAdaptParam[1]
+		  	 <<",\n                lower limit: "<< CFL_LocalAdaptParam[2] <<", upper limit: " << CFL_LocalAdaptParam[3] <<"."<< endl;
+				if (CFL_Adapt) 
+					cout << "WARNING : CFL_ADAP option was ignored." << endl;
+			}
+      else if (CFL_Adapt) cout << "CFL adaptation. Factor down: "<< CFL_AdaptParam[0] <<", factor up: "<< CFL_AdaptParam[1]
         <<",\n                lower limit: "<< CFL_AdaptParam[2] <<", upper limit: " << CFL_AdaptParam[3] <<"."<< endl;
+			else 
+				cout << "No CFL adaptation." << endl;
+			
 
       if (nMGLevels !=0) {
         cout << "Multigrid Level:                  ";
@@ -3769,6 +3907,7 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
       if (!ContinuousAdjoint && !DiscreteAdjoint) {
         cout << "Reduce the density residual " << OrderMagResidual << " orders of magnitude."<< endl;
         cout << "The minimum bound for the density residual is 10^(" << MinLogResidual<< ")."<< endl;
+				cout << "The maximum bound for the density residual is 10^(" << MaxLogResidual<< ")."<< endl;
         cout << "Start convergence criteria at iteration " << StartConv_Iter<< "."<< endl;
       }
 
@@ -4100,6 +4239,15 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
     }
   }
 
+  if (nMarker_WallTemp != 0) {
+    cout << "Wall temperature distribution boundary marker(s): ";
+    for (iMarker_WallTemp = 0; iMarker_WallTemp < nMarker_WallTemp; iMarker_WallTemp++) {
+      cout << Marker_WallTemp[iMarker_WallTemp];
+      if (iMarker_WallTemp < nMarker_WallTemp-1) cout << ", ";
+      else cout <<"."<< endl;
+    }
+  }
+
   if (nMarker_HeatFlux != 0) {
     cout << "Constant heat flux wall boundary marker(s): ";
     for (iMarker_HeatFlux = 0; iMarker_HeatFlux < nMarker_HeatFlux; iMarker_HeatFlux++) {
@@ -4168,6 +4316,15 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
     for (iMarker_Custom = 0; iMarker_Custom < nMarker_Custom; iMarker_Custom++) {
       cout << Marker_Custom[iMarker_Custom];
       if (iMarker_Custom < nMarker_Custom-1) cout << ", ";
+      else cout <<"."<< endl;
+    }
+  }
+
+  if (nMarker_Thrust != 0) {
+    cout << "Thrust boundary marker(s): ";
+    for (iMarker_Thrust = 0; iMarker_Thrust < nMarker_Thrust; iMarker_Thrust++) {
+      cout << Marker_Thrust[iMarker_Thrust];
+      if (iMarker_Thrust < nMarker_Thrust-1) cout << ", ";
       else cout <<"."<< endl;
     }
   }
@@ -4535,6 +4692,8 @@ CConfig::~CConfig(void) {
   if (Hold_GridFixed_Coord != NULL)    delete[] Hold_GridFixed_Coord ;
   if (Subsonic_Engine_Box != NULL)    delete[] Subsonic_Engine_Box ;
   if (DV_Value != NULL)    delete[] DV_Value;
+  if (BSplineCoefs != NULL)    delete[] BSplineCoefs;
+  if (BSplineCoefs_DV != NULL)    delete[] BSplineCoefs_DV;
   if (Design_Variable != NULL)    delete[] Design_Variable;
   if (Dirichlet_Value != NULL)    delete[] Dirichlet_Value;
   if (Exhaust_Temperature_Target != NULL)    delete[]  Exhaust_Temperature_Target;
@@ -4580,12 +4739,15 @@ CConfig::~CConfig(void) {
   if (Kappa_AdjFlow != NULL)          delete[] Kappa_AdjFlow;
   if (PlaneTag != NULL)               delete[] PlaneTag;
   if (CFL_AdaptParam != NULL)         delete[] CFL_AdaptParam;
+  if (Hard_Limiting_Param != NULL)    delete[] Hard_Limiting_Param;
   if (CFL!=NULL)                      delete[] CFL;
+  if (CFL_LocalAdaptParam != NULL)    delete[] CFL_LocalAdaptParam;
 
   /*--- String markers ---*/
   if (Marker_Euler != NULL )              delete[] Marker_Euler;
   if (Marker_FarField != NULL )           delete[] Marker_FarField;
   if (Marker_Custom != NULL )             delete[] Marker_Custom;
+	if (Marker_Thrust != NULL )             delete[] Marker_Thrust;
   if (Marker_SymWall != NULL )            delete[] Marker_SymWall;
   if (Marker_Pressure != NULL )           delete[] Marker_Pressure;
   if (Marker_PerBound != NULL )           delete[] Marker_PerBound;
@@ -4599,6 +4761,7 @@ CConfig::~CConfig(void) {
   if (Marker_Outlet != NULL )             delete[] Marker_Outlet;
   if (Marker_Out_1D != NULL )             delete[] Marker_Out_1D;
   if (Marker_Isothermal != NULL )         delete[] Marker_Isothermal;
+	if (Marker_WallTemp != NULL )         delete[] Marker_WallTemp;
   if (Marker_EngineInflow != NULL )      delete[] Marker_EngineInflow;
   if (Marker_EngineBleed != NULL )      delete[] Marker_EngineBleed;
   if (Marker_EngineExhaust != NULL )     delete[] Marker_EngineExhaust;
@@ -4690,6 +4853,7 @@ string CConfig::GetObjFunc_Extension(string val_filename) {
       case AVG_OUTLET_PRESSURE:     AdjExt = "_pe";       break;
       case MASS_FLOW_RATE:          AdjExt = "_mfr";       break;
       case OUTFLOW_GENERALIZED:     AdjExt = "_chn";       break;
+			case THRUST_NOZZLE:           AdjExt = "_nt";       break;
     }
     Filename.append(AdjExt);
 

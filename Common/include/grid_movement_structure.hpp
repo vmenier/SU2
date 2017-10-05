@@ -1236,6 +1236,25 @@ public:
    */
   void SetScale(CGeometry *boundary, CConfig *config, unsigned short iDV, bool ResetDef);
 
+	
+
+	void uMap3(su2double *knots, su2double *coefs, su2double u, su2double *x, su2double *y,
+		su2double *dxdu, su2double *dydu, int k, int c);
+	
+	int bsp_find(su2double xFind, su2double *xVec, int size);
+	
+ 	void	bSplineGeo3(su2double *knots, su2double *coefs, su2double *x, su2double *y,
+		su2double *dydx, int nx, int k, int c);
+
+  /*!
+   * \brief Set a displacement for surface movement.
+   * \param[in] boundary - Geometry of the boundary.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] iDV - Index of the design variable.
+   * \param[in] ResetDef - Reset the deformation before starting a new one.
+   */
+  void SetBspline(CGeometry *boundary, CConfig *config, unsigned short iDV, bool ResetDef);
+
 	/*! 
 	 * \brief Copy the boundary coordinates to each vertex.
 	 * \param[in] geometry - Geometrical definition of the problem.

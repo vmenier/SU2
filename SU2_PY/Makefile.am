@@ -44,6 +44,7 @@ bin_SCRIPTS = \
     set_ffd_design_var.py \
     compute_polar.py \
     discrete_adjoint.py \
+		mesh_adaptation_amg.py \
     direct_differentiation.py
 
 
@@ -73,6 +74,7 @@ nobase_dist_mypkg_DATA= \
     SU2/run/adjoint.py \
     SU2/run/deform.py \
     SU2/run/direct.py \
+		SU2/run/adaptation_amg.py \
     SU2/run/interface.py \
     SU2/run/merge.py \
     SU2/run/geometry.py \

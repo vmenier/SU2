@@ -85,6 +85,9 @@ protected:
 	*Residual,						/*!< \brief Auxiliary nVar vector. */
 	*Residual_i,					/*!< \brief Auxiliary nVar vector for storing the residual at point i. */
 	*Residual_j;					/*!< \brief Auxiliary nVar vector for storing the residual at point j. */
+	
+	su2double CFLLoc_Max, CFLLoc_Min;
+	
   unsigned long *Point_Max; /*!< \brief Vector with the maximal residual for each variable. */
   su2double **Point_Max_Coord; /*!< \brief Vector with pointers to the coords of the maximal residual for each variable. */
 	su2double *Solution,		/*!< \brief Auxiliary nVar vector. */
@@ -109,11 +112,14 @@ protected:
   
 	su2double **Smatrix,	/*!< \brief Auxiliary structure for computing gradients by least-squares */
 	**cvector;			 /*!< \brief Auxiliary structure for computing gradients by least-squares */
-
+	
     unsigned short nOutputVariables;  /*!< \brief Number of variables to write. */
 
 public:
   
+	su2double *Relax_Factor_Loc;  /*!< \brief Auxiliary vector for storing local relaxation flow factors */
+	su2double *CFL_Loc;  /*!< \brief Auxiliary vector for storing local CFL values */
+
   CSysVector LinSysSol;		/*!< \brief vector to store iterative solution of implicit linear system. */
   CSysVector LinSysRes;		/*!< \brief vector to store iterative residual of implicit linear system. */
   CSysVector LinSysAux;		/*!< \brief vector to store iterative residual of implicit linear system. */
@@ -127,6 +133,8 @@ public:
   CVariable** node;	/*!< \brief Vector which the define the variables for each problem. */
   CVariable* node_infty; /*!< \brief CVariable storing the free stream conditions. */
   
+	
+
 	/*!
 	 * \brief Constructor of the class.
 	 */
@@ -222,6 +230,7 @@ public:
 	 */
   virtual void SetNondimensionalization(CGeometry *geometry, CConfig *config, unsigned short iMesh);
   
+
 	/*!
 	 * \brief Compute the pressure at the infinity.
 	 * \return Value of the pressure at the infinity.
@@ -327,7 +336,12 @@ public:
 	 * \param[in] val_residual - Value of the residual to store in the position <i>val_var</i>.
 	 */
 	void SetRes_Max(unsigned short val_var, su2double val_residual, unsigned long val_point);
-    
+	
+	void SetCFLLoc_Max(su2double val);
+  void SetCFLLoc_Min(su2double val);
+  
+	
+
 	/*!
 	 * \brief Adds the maximal residual, this is useful for the convergence history.
 	 * \param[in] val_var - Index of the variable.
@@ -343,6 +357,9 @@ public:
 	 * \return Value of the biggest residual for the variable in the position <i>val_var</i>.
 	 */
 	su2double GetRes_Max(unsigned short val_var);
+
+	su2double GetCFLLoc_Max();
+	su2double GetCFLLoc_Min();
 
 	/*!
 	 * \brief Get the residual for FEM structural analysis.
@@ -678,6 +695,8 @@ public:
 
 	virtual void BC_Pressure(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CConfig *config,
                               unsigned short val_marker);
+
+
     
 	/*!
 	 * \brief A virtual member.
@@ -719,6 +738,22 @@ public:
 	 * \param[in] val_marker - Surface marker where the boundary condition is applied.
 	 */
 	virtual void BC_Isothermal_Wall(CGeometry *geometry,
+                                  CSolver **solver_container,
+                                  CNumerics *conv_numerics,
+                                  CNumerics *visc_numerics,
+                                  CConfig *config,
+                                  unsigned short val_marker);
+
+	/*!
+	 * \brief A virtual member.
+	 * \param[in] geometry - Geometrical definition of the problem.
+	 * \param[in] solver_container - Container vector with all the solutions.
+	 * \param[in] conv_numerics - Description of the numerical method.
+	 * \param[in] visc_numerics - Description of the numerical method.
+	 * \param[in] config - Definition of the particular problem.
+	 * \param[in] val_marker - Surface marker where the boundary condition is applied.
+	 */
+	virtual void BC_Isothermal_Wall_Distrib(CGeometry *geometry,
                                   CSolver **solver_container,
                                   CNumerics *conv_numerics,
                                   CNumerics *visc_numerics,
@@ -1484,7 +1519,14 @@ public:
 	 * \param[in] val_Total_CDrag - Value of the total drag coefficient.
 	 */
 	virtual void SetTotal_CDrag(su2double val_Total_CDrag);
-    
+
+	/*!
+	 * \brief A virtual member.
+	 * \param[in] val_Thrust_Nozzle - Value of the nozzle thrust.
+	 */
+	virtual void SetThrust_Nozzle(su2double val_Thrust_Nozzle);
+
+
 	/*!
 	 * \brief A virtual member.
 	 * \param[in] val_Total_CLift - Value of the total lift coefficient.
@@ -1917,6 +1959,12 @@ public:
 	 * \return Value of the drag coefficient (inviscid + viscous contribution).
 	 */
 	virtual su2double GetTotal_CDrag(void);
+	
+	/*!
+	 * \brief A virtual member.
+	 * \return Value of the thrust.
+	 */
+	virtual su2double GetThrust_Nozzle(void);
     
 	/*!
 	 * \brief A virtual member.
@@ -2977,6 +3025,7 @@ protected:
   OneD_EnthalpyRef, /*!< \brief flux average enthalpy evaluated at an exit */
   OneD_VelocityRef, /*!< \brief flux average velocity evaluated at an exit */
   Total_CDrag, /*!< \brief Total drag coefficient for all the boundaries. */
+	Thrust_Nozzle,       /*!< \brief Thrust. */
 	Total_CLift,		/*!< \brief Total lift coefficient for all the boundaries. */
 	Total_CSideForce,		/*!< \brief Total sideforce coefficient for all the boundaries. */
 	Total_CMx,			/*!< \brief Total x moment coefficient for all the boundaries. */
@@ -3143,6 +3192,23 @@ public:
 	 */
   void Set_MPI_Primitive_Limiter(CGeometry *geometry, CConfig *config);
   
+		/*!
+	 * \brief Parse the native Inria restart solution file
+	 * \param[in] geometry - Geometrical definition of the problem.
+	 * \param[in] config - Definition of the particular problem.
+	 */
+	void Load_Inria_SolutionFlow(CGeometry *geometry, CConfig *config, string filename);  
+  
+  
+		/*!
+	 * \brief Parse the native SU2 restart solution file
+	 * \param[in] geometry - Geometrical definition of the problem.
+	 * \param[in] config - Definition of the particular problem.
+	 */
+	void Load_SU2_SolutionFlow(CGeometry *geometry, CConfig *config, string filename);
+
+
+
 //  /*!
 //	 * \brief Impose the send-receive boundary condition.
 //	 * \param[in] geometry - Geometrical definition of the problem.
@@ -3260,6 +3326,8 @@ public:
 	void Source_Residual(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CNumerics *second_numerics,
                          CConfig *config, unsigned short iMesh);
     
+	void Compute_Local_Relaxation(CConfig *config,CGeometry *geometry, CSolver **solver_container);
+	
 	/*!
 	 * \brief Source term integration.
 	 * \param[in] geometry - Geometrical definition of the problem.
@@ -4263,6 +4331,12 @@ public:
 	 * \return Value of the drag coefficient (inviscid + viscous contribution).
 	 */
 	su2double GetTotal_CDrag(void);
+	
+	/*!
+	 * \brief Provide the thrust.
+	 * \return Value of the thrust.
+	 */
+	su2double GetThrust_Nozzle(void);
     
 	/*!
 	 * \brief Provide the total (inviscid + viscous) non dimensional x moment coefficient.
@@ -4359,6 +4433,13 @@ public:
 	 * \param[in] val_Total_CDrag - Value of the total drag coefficient.
 	 */
 	void SetTotal_CDrag(su2double val_Total_CDrag);
+	
+	
+	/*!
+	 * \brief Store the nozzle thrust.
+	 * \param[in] val_Thrust_Nozzle - Value of the nozzle thrust.
+	 */
+	void SetThrust_Nozzle(su2double val_Thrust_Nozzle);
     
 	/*!
 	 * \brief Get the inviscid contribution to the lift coefficient.
@@ -4673,6 +4754,9 @@ private:
   AllBound_HeatFlux_Visc,		/*!< \brief Heat load (viscous contribution) for all the boundaries. */
   AllBound_MaxHeatFlux_Visc; /*!< \brief Maximum heat flux (viscous contribution) for all boundaries. */
   su2double StrainMag_Max, Omega_Max; /*!< \brief Maximum Strain Rate magnitude and Omega. */
+
+	su2double * WallTemp;  /*!< \brief Imposed wall temperature profile. */
+
   
 public:
   
@@ -4704,6 +4788,24 @@ public:
 	 * \return Value of the turbulent kinetic energy at the infinity.
 	 */
 	su2double GetTke_Inf(void);
+	
+	
+		/*!
+	 * \brief Parse the native Inria restart solution file
+	 * \param[in] geometry - Geometrical definition of the problem.
+	 * \param[in] config - Definition of the particular problem.
+	 */
+	void Load_Inria_SolutionFlow(CGeometry *geometry, CConfig *config, string filename);  
+  
+	
+		/*!
+	 * \brief Parse the native SU2 restart solution file
+	 * \param[in] geometry - Geometrical definition of the problem.
+	 * \param[in] config - Definition of the particular problem.
+	 */
+	void Load_SU2_SolutionFlow(CGeometry *geometry, CConfig *config, string filename);
+
+  
     
 	/*!
 	 * \brief Compute the time step for solving the Navier-Stokes equations with turbulence model.
@@ -4758,6 +4860,22 @@ public:
 	 */
 	void BC_Isothermal_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config,
                             unsigned short val_marker);
+
+
+	void Set_Wall_Temp(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config,
+	                          unsigned short val_marker);
+
+	  /*!
+	 * \brief Impose the Navier-Stokes boundary condition (strong).
+	 * \param[in] geometry - Geometrical definition of the problem.
+	 * \param[in] solver_container - Container vector with all the solutions.
+	 * \param[in] conv_numerics - Description of the numerical method.
+	 * \param[in] visc_numerics - Description of the numerical method.
+	 * \param[in] config - Definition of the particular problem.
+	 * \param[in] val_marker - Surface marker where the boundary condition is applied.
+	 */
+	void BC_Isothermal_Wall_Distrib(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config,
+	                          unsigned short val_marker);
     
 	/*!
 	 * \brief Compute the viscous forces and all the addimensional coefficients.
@@ -5119,7 +5237,19 @@ public:
 	 */
 	void BC_Isothermal_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config,
                             unsigned short val_marker);
-    
+	
+	  /*!
+	 * \brief Impose the Navier-Stokes wall boundary condition.
+	 * \param[in] geometry - Geometrical definition of the problem.
+	 * \param[in] solver_container - Container vector with all the solutions.
+	 * \param[in] conv_numerics - Description of the numerical method.
+	 * \param[in] visc_numerics - Description of the numerical method.
+	 * \param[in] config - Definition of the particular problem.
+	 * \param[in] val_marker - Surface marker where the boundary condition is applied.
+	 */
+	void BC_Isothermal_Wall_Distrib(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config,
+	                          unsigned short val_marker);
+	
 	/*!
 	 * \brief Impose the Far Field boundary condition.
 	 * \param[in] geometry - Geometrical definition of the problem.
@@ -5454,6 +5584,24 @@ public:
 	 */
 	void Postprocessing(CGeometry *geometry, CSolver **solver_container, CConfig *config,
                         unsigned short iMesh);
+
+	
+		/*!
+	 * \brief Parse the native Inria restart solution file
+	 * \param[in] geometry - Geometrical definition of the problem.
+	 * \param[in] config - Definition of the particular problem.
+	 */
+	void Load_Inria_SolutionFlow(CGeometry *geometry, CConfig *config, string filename);  
+	
+	
+		/*!
+	 * \brief Parse the native SU2 restart solution file
+	 * \param[in] geometry - Geometrical definition of the problem.
+	 * \param[in] config - Definition of the particular problem.
+	 */
+	void Load_SU2_SolutionFlow(CGeometry *geometry, CConfig *config, string filename);
+	
+	
   
 	/*!
 	 * \brief Source term computation.
@@ -5501,7 +5649,17 @@ public:
 	 */
 	void BC_Isothermal_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config,
                             unsigned short val_marker);
-    
+	  /*!
+	 * \brief Impose the Navier-Stokes wall boundary condition.
+	 * \param[in] geometry - Geometrical definition of the problem.
+	 * \param[in] solver_container - Container vector with all the solutions.
+	 * \param[in] conv_numerics - Description of the numerical method.
+	 * \param[in] visc_numerics - Description of the numerical method.
+	 * \param[in] config - Definition of the particular problem.
+	 * \param[in] val_marker - Surface marker where the boundary condition is applied.
+	 */
+	void BC_Isothermal_Wall_Distrib(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config,
+	                            	unsigned short val_marker);    
 	/*!
 	 * \brief Impose the Far Field boundary condition.
 	 * \param[in] geometry - Geometrical definition of the problem.
@@ -5720,6 +5878,9 @@ public:
 	 */
 	void Source_Residual(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CNumerics *second_numerics,
                          CConfig *config, unsigned short iMesh);
+
+	
+	
     
 	/*!
 	 * \brief Source term integration.
@@ -6100,7 +6261,20 @@ public:
 	 * \param[in] val_marker - Surface marker where the boundary condition is applied.
 	 */
 	void BC_Isothermal_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config, unsigned short val_marker);
-    
+ 
+
+	  /*!
+	 * \brief Impose via the residual or brute force the Navier-Stokes adjoint boundary condition (heat flux).
+	 * \param[in] geometry - Geometrical definition of the problem.
+	 * \param[in] solver_container - Container vector with all the solutions.
+	 * \param[in] conv_numerics - Description of the numerical method.
+	 * \param[in] visc_numerics - Description of the numerical method.
+	 * \param[in] config - Definition of the particular problem.
+	 * \param[in] val_marker - Surface marker where the boundary condition is applied.
+	 */
+	void BC_Isothermal_Wall_Distrib(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config, unsigned short val_marker);
+
+
 	/*!
 	 * \brief Restart residual and compute gradients.
 	 * \param[in] geometry - Geometrical definition of the problem.
@@ -6226,7 +6400,17 @@ public:
 	 */
 	void BC_Isothermal_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config,
                           unsigned short val_marker);
-  
+  /*!
+	 * \brief Impose an isothermal wall boundary condition (no-slip).
+	 * \param[in] geometry - Geometrical definition of the problem.
+	 * \param[in] solver_container - Container vector with all the solutions.
+	 * \param[in] conv_numerics - Description of the numerical method.
+	 * \param[in] visc_numerics - Description of the numerical method.
+	 * \param[in] config - Definition of the particular problem.
+	 * \param[in] val_marker - Surface marker where the boundary condition is applied.
+	 */
+	void BC_Isothermal_Wall_Distrib(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config,
+                          unsigned short val_marker);  
 	/*!
 	 * \brief Impose the boundary condition to the far field using characteristics.
 	 * \param[in] geometry - Geometrical definition of the problem.
@@ -6655,6 +6839,16 @@ public:
 	 * \param[in] val_marker - Surface marker where the boundary condition is applied.
 	 */
 	void BC_Isothermal_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config, unsigned short val_marker);
+  /*!
+	 * \brief Impose via the residual or brute force the Navier-Stokes adjoint boundary condition (heat flux).
+	 * \param[in] geometry - Geometrical definition of the problem.
+	 * \param[in] solver_container - Container vector with all the solutions.
+	 * \param[in] conv_numerics - Description of the numerical method.
+	 * \param[in] visc_numerics - Description of the numerical method.
+	 * \param[in] config - Definition of the particular problem.
+	 * \param[in] val_marker - Surface marker where the boundary condition is applied.
+	 */
+	void BC_Isothermal_Wall_Distrib(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config, unsigned short val_marker);
   
 	/*!
 	 * \brief Set residuals to zero.
@@ -7010,6 +7204,8 @@ public:
 	 */
 	void BC_Pressure(CGeometry *geometry, CSolver **solver_container, CNumerics *numerics, CConfig *config,
                       unsigned short val_marker);
+
+
 
 	/*!
 	 * \brief Update the solution using an implicit solver.

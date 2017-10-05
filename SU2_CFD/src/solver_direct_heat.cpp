@@ -356,6 +356,17 @@ void CHeatSolver::Viscous_Residual(CGeometry *geometry, CSolver **solver_contain
 
 void CHeatSolver::BC_HeatFlux_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config, unsigned short val_marker) { }
 
+
+void CHeatSolver::BC_Isothermal_Wall_Distrib(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config, unsigned short val_marker) {
+	int rank = MASTER_NODE;
+#ifdef HAVE_MPI
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#endif
+	if (rank == MASTER_NODE)
+    cout << "BC_Isothermal_Wall_Distrib not implemented for  CHeatSolver"<< endl;
+  exit(EXIT_FAILURE);
+}
+
 void CHeatSolver::BC_Isothermal_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config, unsigned short val_marker) {
   
   unsigned long iPoint, iVertex, total_index;
