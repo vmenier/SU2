@@ -97,6 +97,7 @@ su2_cfd_sources = \
   ../src/output_tecplot.cpp \
   ../src/output_fieldview.cpp \
   ../src/output_su2.cpp \
+  ../src/output_inria.cpp \
   ../src/output_paraview.cpp \
   ../src/solver_adjoint_levelset.cpp \
   ../src/solver_adjoint_mean.cpp \

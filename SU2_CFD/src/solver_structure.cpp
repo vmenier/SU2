@@ -113,6 +113,8 @@ CSolver::~CSolver(void) {
   if (Res_Visc_i != NULL) delete [] Res_Visc_i;
   if (Res_Visc_j != NULL) delete [] Res_Visc_j;
 
+	if (Relax_Factor_Loc != NULL ) delete [] Relax_Factor_Loc;
+	if (CFL_Loc != NULL ) delete [] CFL_Loc;
 
   if (Jacobian_i != NULL) {
     for (iVar = 0; iVar < nVar; iVar++)
@@ -174,7 +176,7 @@ void CSolver::SetResidual_RMS(CGeometry *geometry, CConfig *config) {
   for (iVar = 0; iVar < nVar; iVar++) {
     
     if (GetRes_RMS(iVar) != GetRes_RMS(iVar)) {
-      cout << "\n !!! Error: SU2 has diverged. Now exiting... !!! \n" << endl;
+      cout << "\n !!! Error: SU2 has diverged. Now exiting... !!! 2\n" << endl;
       exit(EXIT_FAILURE);
     }
 
@@ -210,7 +212,7 @@ void CSolver::SetResidual_RMS(CGeometry *geometry, CConfig *config) {
     if (rbuf_residual[iVar] != rbuf_residual[iVar]) {
       
       if (rank == MASTER_NODE)
-        cout << "\n !!! Error: SU2 has diverged. Now exiting... !!! \n" << endl;
+        cout << "\n !!! Error: SU2 has diverged. Now exiting... !!! 3\n" << endl;
       
       MPI_Abort(MPI_COMM_WORLD,1);
       
@@ -1691,7 +1693,7 @@ void CSolver::Restart_OldGeometry(CGeometry *geometry, CConfig *config) {
 
 	if (rbuf_NotMatching != 0) {
 		if (rank == MASTER_NODE) {
-			cout << endl << "The solution file " << filename_n.data() << " doesn't match with the mesh file!" << endl;
+			cout << endl << "The solution file " << filename_n.data() << " doesn't match with the mesh file 1!" << endl;
 			cout << "It could be empty lines at the end of the file." << endl << endl;
 		}
 #ifndef HAVE_MPI
@@ -1795,7 +1797,7 @@ void CSolver::Restart_OldGeometry(CGeometry *geometry, CConfig *config) {
 
 		if (rbuf_NotMatching != 0) {
 			if (rank == MASTER_NODE) {
-				cout << endl << "The solution file " << filename_n1.data() << " doesn't match with the mesh file!" << endl;
+				cout << endl << "The solution file " << filename_n1.data() << " doesn't match with the mesh file 2!" << endl;
 				cout << "It could be empty lines at the end of the file." << endl << endl;
 			}
 #ifndef HAVE_MPI

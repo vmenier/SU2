@@ -51,7 +51,7 @@ void COutput::SetSU2_MeshASCII(CConfig *config, CGeometry *geometry) {
   output_file.open(cstr, ios::out);
   
   /*--- Write dimensions data. ---*/
-
+	
   output_file << "NDIME= " << nDim << endl;
   
   /*--- Write connectivity data. ---*/

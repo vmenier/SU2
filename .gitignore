@@ -45,3 +45,7 @@ externals/autotools/share
 REVERSE/
 NORMAL/
 DIRECTDIFF/
+
+# 
+TestCases/mesh_adaptation/ONERAM6/save_ADAP
+TestCases/mesh_adaptation/ONERAM6/ADAP

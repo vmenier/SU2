@@ -566,6 +566,9 @@ void CSourcePieceWise_TurbSA::ComputeResidual(su2double *val_residual, su2double
 //    Production = cb1*(1.0-ft2)*Shat*TurbVar_i[0]*Volume;
     
     Production = cb1*Shat*TurbVar_i[0]*Volume;
+		
+		Production *= config->GetSA_Production_Factor();
+		
 
     /*--- Destruction term ---*/
     
@@ -596,7 +599,10 @@ void CSourcePieceWise_TurbSA::ComputeResidual(su2double *val_residual, su2double
     dfv2 = -(1/nu-Ji_2*dfv1)/pow(1.+Ji*fv1,2.);
     if ( Shat <= 1.0e-10 ) dShat = 0.0;
     else dShat = (fv2+TurbVar_i[0]*dfv2)*inv_k2_d2;
-    val_Jacobian_i[0][0] += cb1*(TurbVar_i[0]*dShat+Shat)*Volume;
+    //val_Jacobian_i[0][0] += cb1*(TurbVar_i[0]*dShat+Shat)*Volume;
+
+		val_Jacobian_i[0][0] += config->GetSA_Production_Factor()*(cb1*(TurbVar_i[0]*dShat+Shat)*Volume);
+
     
     /*--- Implicit part, destruction term ---*/
     
@@ -699,6 +705,9 @@ void CSourcePieceWise_TurbSA_Neg::ComputeResidual(su2double *val_residual, su2do
       //    Production = cb1*(1.0-ft2)*Shat*TurbVar_i[0]*Volume;
       
       Production = cb1*Shat*TurbVar_i[0]*Volume;
+
+			Production *= config->GetSA_Production_Factor();
+			
       
       /*--- Destruction term ---*/
       
@@ -729,8 +738,10 @@ void CSourcePieceWise_TurbSA_Neg::ComputeResidual(su2double *val_residual, su2do
       dfv2 = -(1/nu-Ji_2*dfv1)/pow(1.+Ji*fv1,2.);
       if ( Shat <= 1.0e-10 ) dShat = 0.0;
       else dShat = (fv2+TurbVar_i[0]*dfv2)*inv_k2_d2;
-      val_Jacobian_i[0][0] += cb1*(TurbVar_i[0]*dShat+Shat)*Volume;
-      
+      //val_Jacobian_i[0][0] += cb1*(TurbVar_i[0]*dShat+Shat)*Volume;
+      val_Jacobian_i[0][0] += config->GetSA_Production_Factor()*(cb1*(TurbVar_i[0]*dShat+Shat)*Volume);
+
+
       /*--- Implicit part, destruction term ---*/
       
       dr = (Shat-TurbVar_i[0]*dShat)*inv_Shat*inv_Shat*inv_k2_d2;
@@ -750,6 +761,8 @@ void CSourcePieceWise_TurbSA_Neg::ComputeResidual(su2double *val_residual, su2do
       /*--- Production term ---*/;
       
       Production = cb1*(1.0-ct3)*Omega*TurbVar_i[0]*Volume;
+
+			Production *= config->GetSA_Production_Factor();
       
       /*--- Destruction term ---*/
       
@@ -767,7 +780,8 @@ void CSourcePieceWise_TurbSA_Neg::ComputeResidual(su2double *val_residual, su2do
       
       /*--- Implicit part, production term ---*/
       
-      val_Jacobian_i[0][0] += cb1*(1.0-ct3)*Omega*Volume;
+      //val_Jacobian_i[0][0] += cb1*(1.0-ct3)*Omega*Volume;
+			val_Jacobian_i[0][0] += config->GetSA_Production_Factor()*(cb1*(1.0-ct3)*Omega*Volume);
       
       /*--- Implicit part, destruction term ---*/
       

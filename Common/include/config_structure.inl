@@ -33,7 +33,15 @@
 
 inline su2double CConfig::GetCFL_AdaptParam(unsigned short val_index) { return CFL_AdaptParam[val_index]; }
 
+inline su2double CConfig::GetHard_Limiting_Param(unsigned short val_index) { return Hard_Limiting_Param[val_index]; }
+
+inline su2double CConfig::GetCFL_LocalAdaptParam(unsigned short val_index) { return CFL_LocalAdaptParam[val_index]; }
+
+inline bool CConfig::GetLocal_CFL_Adapt(void) { return Local_CFL_Adapt; }
+
 inline bool CConfig::GetCFL_Adapt(void) { return CFL_Adapt; }
+
+inline bool CConfig::GetLocal_Relax_Factor(void) { return Local_Relax_Factor; }
 
 inline void CConfig::SetInflow_Mach(unsigned short val_imarker, su2double val_fanface_mach) { Inflow_Mach[val_imarker] = val_fanface_mach; }
 
@@ -196,6 +204,10 @@ inline su2double CConfig::GetModVel_FreeStreamND(void) { return ModVel_FreeStrea
 
 inline su2double CConfig::GetPressure_FreeStream(void) { return Pressure_FreeStream; }
 
+inline su2double CConfig::GetSA_Production_Factor(void) { return SA_Production_Factor; }
+
+inline double CConfig::GetbetaArr(int index) { return betaArr[index]; }
+
 inline su2double CConfig::GetTemperature_ve_FreeStream(void) { return Temperature_ve_FreeStream; }
 
 inline su2double CConfig::GetPrandtl_Lam(void) { return Prandtl_Lam; }
@@ -294,6 +306,10 @@ inline su2double CConfig::GetReynolds(void) { return Reynolds; }
 inline su2double CConfig::GetFroude(void) { return Froude; }
 
 inline void CConfig::SetPressure_FreeStreamND(su2double val_pressure_freestreamnd) { Pressure_FreeStreamND = val_pressure_freestreamnd; }
+
+inline void CConfig::SetSA_Production_Factor(su2double val_SA_Production_Factor) { SA_Production_Factor = val_SA_Production_Factor; }
+
+inline void CConfig::SetbetaArr(double *val_betaArr){ betaArr = val_betaArr; }
 
 inline void CConfig::SetPressure_FreeStream(su2double val_pressure_freestream) { Pressure_FreeStream = val_pressure_freestream; }
 
@@ -417,6 +433,12 @@ inline unsigned short CConfig::GetFFD_Continuity(void) { return FFD_Continuity; 
 
 inline unsigned short CConfig::GetnRKStep(void) { return nRKStep; }
 
+inline unsigned short CConfig::GetnWallTemp(void) { return nWallTemp; }
+
+inline unsigned short CConfig::GetnBSplineCoefs(void) { return nBSplineCoefs; }
+
+inline su2double CConfig::Get_WallTemp_Value(unsigned short val) { return WallTemp[val]; }
+
 inline su2double CConfig::Get_Alpha_RKStep(unsigned short val_step) { return RK_Alpha_Step[val_step]; }
 
 inline unsigned short CConfig::GetMG_PreSmooth(unsigned short val_mesh) {	
@@ -445,6 +467,8 @@ inline unsigned long CConfig::GetWrt_Con_Freq_DualTime(void) { return Wrt_Con_Fr
 inline bool CConfig::GetWrt_Unsteady(void) { return Wrt_Unsteady; }
 
 inline bool CConfig::GetLowFidelitySim(void) { return LowFidelitySim; }
+
+inline bool CConfig::GetSaveDefFile(void) { return SaveDefFile; }
 
 inline bool CConfig::GetIonization(void) { return ionization; }
 
@@ -762,6 +786,8 @@ inline bool CConfig::GetEquivArea(void) { return EquivArea; }
 
 inline bool CConfig::GetInvDesign_Cp(void) { return InvDesign_Cp; }
 
+inline bool CConfig::GetNozzleThrust(void) { return NozzleThrust; }
+
 inline bool CConfig::GetInvDesign_HeatFlux(void) { return InvDesign_HeatFlux; }
 
 inline void CConfig::SetnMarker_All(unsigned short val_nmarker) { nMarker_All = val_nmarker; }
@@ -844,6 +870,8 @@ inline unsigned short CConfig::GetnMarker_Max(void) { return nMarker_Max; }
 
 inline unsigned short CConfig::GetnMarker_EngineInflow(void) {	return nMarker_EngineInflow; }
 
+inline unsigned short CConfig::GetnMarker_WallTemp(void) {	return nMarker_WallTemp; }
+
 inline unsigned short CConfig::GetnMarker_EngineBleed(void) {	return nMarker_EngineBleed; }
 
 inline unsigned short CConfig::GetnMarker_EngineExhaust(void) { return nMarker_EngineExhaust; }
@@ -863,6 +891,8 @@ inline unsigned short CConfig::GetnMarker_ActDisk_Inlet(void) { return nMarker_A
 inline unsigned short CConfig::GetnMarker_ActDisk_Outlet(void) { return nMarker_ActDisk_Outlet; }
 
 inline string CConfig::GetMesh_FileName(void) { return Mesh_FileName; }
+
+inline string CConfig::GetThrust_FileName(void) { return Thrust_FileName; }
 
 inline string CConfig::GetMesh_Out_FileName(void) { return Mesh_Out_FileName; }
 
@@ -946,11 +976,16 @@ inline bool CConfig::GetEngine_Intake(void) { return Engine_Intake; }
 
 inline su2double CConfig::GetDV_Value(unsigned short val_dv, unsigned short val_value) { return DV_Value[val_dv][val_value]; }
 
+inline su2double CConfig::GetBSplineCoefs_Value(unsigned short val) { return BSplineCoefs[val]; }
+inline unsigned short CConfig::GetBSplineCoefs_DV_Value(unsigned short val) { return BSplineCoefs_DV[val]; }
+
 inline void CConfig::SetDV_Value(unsigned short val_dv, unsigned short val_ind, su2double val) { DV_Value[val_dv][val_ind] = val; }
 
 inline su2double CConfig::GetOrderMagResidual(void) { return OrderMagResidual; }
 
 inline su2double CConfig::GetMinLogResidual(void) { return MinLogResidual; }
+
+inline su2double CConfig::GetMaxLogResidual(void) { return MaxLogResidual; }
 
 inline su2double CConfig::GetDamp_Engine_Inflow(void) { return Damp_Engine_Inflow; }
 
@@ -1041,6 +1076,10 @@ inline bool CConfig::GetWrt_Residuals(void) { return Wrt_Residuals; }
 inline bool CConfig::GetWrt_Limiters(void) { return Wrt_Limiters; }
 
 inline bool CConfig::GetWrt_SharpEdges(void) { return Wrt_SharpEdges; }
+
+inline bool CConfig::GetWrt_InriaMesh(void) { return Wrt_InriaMesh; }
+
+inline bool CConfig::GetMesh_Decomposition(void) { return Mesh_Decomposition; }
 
 inline bool CConfig::GetWrt_Halo(void) { return Wrt_Halo; }
 

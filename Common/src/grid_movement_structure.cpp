@@ -3070,6 +3070,14 @@ void CSurfaceMovement::SetSurface_Deformation(CGeometry *geometry, CConfig *conf
   else if (config->GetDesign_Variable(0) == CUSTOM && rank == MASTER_NODE)
     cout <<"Custom design variable will be used in external script" << endl;
   
+ /*--- Bspline ---*/
+  else if (config->GetDesign_Variable(0) == BSPLINECOEF) {
+		cout << "NDV = " << config->GetnDV() << endl;
+		for (iDV = 0; iDV < config->GetnDV(); iDV++) {
+        SetBspline(geometry, config, iDV, false); 
+		}
+	}
+	
   /*--- Design variable not implement ---*/
 
   else {
@@ -4340,6 +4348,8 @@ void CSurfaceMovement::SetHicksHenne(CGeometry *boundary, CConfig *config, unsig
   
 	bool upper = true, double_surface = false;
 
+	cout << "DV " << iDV << " : VALUE = " << config->GetDV_Value(iDV) << " PARAM = " << config->GetParamDV(iDV, 1) << endl;
+
 	/*--- Reset airfoil deformation if first deformation or if it required by the solver ---*/
   
 	if ((iDV == 0) || (ResetDef == true)) {
@@ -4643,6 +4653,434 @@ void CSurfaceMovement::SetScale(CGeometry *boundary, CConfig *config, unsigned s
 		}
   
 }
+
+
+
+/* Find first 1-based index where scalar xFind < xVec[i] */
+int CSurfaceMovement::bsp_find(su2double xFind, su2double *xVec, int size) {
+  int counter = 1;
+  for(int ii = 1; ii < size; ii++) {
+    if(xFind < xVec[ii]) {break;} // assume xVec is in ascending order
+    counter += 1;
+  }
+  return counter;
+}
+
+
+/* Calculate x, y, dxdu, and dydu given scalar value of parameter u for 3rd 
+   degree NURB spline */
+void CSurfaceMovement::uMap3(su2double *knots, su2double *coefs, su2double u, su2double *x, su2double *y,
+	   su2double *dxdu, su2double *dydu, int k, int c)
+{
+
+  // Zero all outputs
+  *x = 0.;
+  *y = 0.;
+  *dxdu = 0.;
+  *dydu = 0.;
+
+  // Calculate the highest knot index that gives a value of u below
+  // the given u value (1-based index)
+  int hh = bsp_find(u,knots,k);
+  if(hh == k) { // at end of knots vector
+    hh = k - 4;
+  }
+  
+  int nn;
+  if(hh == 1) {nn = 1;}
+  else if(hh == 2) {nn = 2;}
+  else if(hh == 3) {nn = 3;}
+  else {nn = 4;}
+  
+  int ii = 0;
+  int jj;
+  su2double k1, k2, k3, k4, k5; // knot values
+  su2double Ncurrent, dNducurrent; // basis contributions
+  
+  // Sum up contributions from each basis
+  while(ii > -nn) { // i.e. for each contributing basis
+    
+    jj = hh + ii - 1;
+    
+    // Redefine k1 through k5 here
+    k1 = knots[jj];
+    k2 = knots[jj+1];
+    k3 = knots[jj+2];
+    k4 = knots[jj+3];
+    k5 = knots[jj+4];
+    
+    if(ii == 0) { // calculate basis N1
+      if( fabs(k1-k2) <= 1e-8) {Ncurrent = 0; dNducurrent = 0;}
+      else {
+        Ncurrent = (u-k1)/(k4-k1)*(u-k1)/(k3-k1)*(u-k1)/(k2-k1);
+        dNducurrent = -(3*pow(k1 - u,2))/((k1 - k2)*(k1 - k3)*(k1 - k4));
+      }
+    } else if(ii == -1) { // calculate basis N2
+      if( fabs(k2-k3) <= 1e-8) {Ncurrent = 0; dNducurrent = 0;}
+      else {
+        Ncurrent = (u-k1)/(k4-k1)*((u-k1)/(k3-k1)*(k3-u)/(k3-k2) + (k4-u)/
+          (k4-k2)*(u-k2)/(k3-k2)) + (k5-u)/(k5-k2)*(u-k2)/(k4-k2)*(u-k2)/
+          (k3-k2);
+        dNducurrent = (((k1 - u)*(k3 - u))/((k1 - k3)*(k2 - k3)) + ((k2 - u)*
+          (k4 - u))/((k2 - k3)*(k2 - k4)))/(k1 - k4) + pow(k2 - u,2)/((k2 - k3)*
+          (k2 - k4)*(k2 - k5)) + ((k5 - u)*(2*k2 - 2*u))/((k2 - k3)*(k2 - k4)*
+          (k2 - k5)) + (2*(k1 - u)*(k1*k2 - k3*k4 - k1*u - k2*u + k3*u + k4*u))/
+          ((k1 - k3)*(k1 - k4)*(k2 - k3)*(k2 - k4));
+      }    
+    } else if(ii == -2) { // calculate basis N3
+      if( fabs(k3-k4) <= 1e-8) {Ncurrent = 0; dNducurrent = 0;}
+      else {
+        Ncurrent = (u-k1)/(k4-k1)*(k4-u)/(k4-k2)*(k4-u)/(k4-k3) + (k5-u)/
+          (k5-k2)*((u-k2)/(k4-k2)*(k4-u)/(k4-k3) + (k5-u)/(k5-k3)*(u-k3)/
+          (k4-k3));
+        dNducurrent = - (((k2 - u)*(k4 - u))/((k2 - k4)*(k3 - k4)) + ((k3 - u)*
+          (k5 - u))/((k3 - k4)*(k3 - k5)))/(k2 - k5) - pow(k4 - u,2)/((k1 - k4)*
+          (k2 - k4)*(k3 - k4)) - ((k1 - u)*(2*k4 - 2*u))/((k1 - k4)*(k2 - k4)*
+          (k3 - k4)) - (2*(k5 - u)*(k2*k3 - k4*k5 - k2*u - k3*u + k4*u + k5*u))/
+          ((k2 - k4)*(k2 - k5)*(k3 - k4)*(k3 - k5));
+      }       
+    } else { // calculate basis N4
+      if( fabs(k4-k5) <= 1e-8) {Ncurrent = 0; dNducurrent = 0;}
+      else {
+        Ncurrent = (k5-u)/(k5-k2)*(k5-u)/(k5-k3)*(k5-u)/(k5-k4);  
+        dNducurrent = (3*pow(k5 - u,2))/((k2 - k5)*(k3 - k5)*(k4 - k5));
+      }     
+    }
+    
+    *x += coefs[jj]*Ncurrent;
+    *y += coefs[c + jj]*Ncurrent;
+    *dxdu += coefs[jj]*dNducurrent;
+    *dydu += coefs[c + jj]*dNducurrent;
+    
+    ii -= 1;
+    
+    if(ii < -4) {break;}
+    
+  }  
+  
+  return;
+  
+}
+
+
+/* u is a scalar value of the B-spline parameteric parameter u, knots is 
+   a 1-D array of size k, coefs is a 1-D array of size 2*c, where x
+   coordinates are listed first, followed by y coordinates */
+void CSurfaceMovement::bSplineGeo3(su2double *knots, su2double *coefs, su2double *x, su2double *y,
+		     su2double *dydx, int nx, int k, int c)
+{
+
+  /* Check degree of spline */
+  int p = k - c - 1;
+  if(p != 3) {
+		//printf("  ## ERROR : Only B-splines of degree 3 are implemented\n");
+    std::cout << "Only B-splines of degree 3 are implemented"<< " (degree " << p << " given)" << std::endl;
+    return;
+  }
+
+  /* Check knots vector format */
+  /* For 3rd degree B-spline that starts at first coefficient and ends at last coefficient,
+     first 4 and last 4 knots should be duplicated */
+  if(knots[0] != knots[1] || knots[1] != knots[2] || knots[2] != knots[3]) {
+		//printf("First 4 knots should be the same\n");
+    std::cout << "First 4 knots should be the same" << std::endl;
+    return;
+  }
+  if(knots[k-1] != knots[k-2] || knots[k-2] != knots[k-3] || knots[k-3] != knots[k-4]) {
+		//printf("Last 4 knots should be the same\n");
+    std::cout << "Last 4 knots should be the same" << std::endl;
+    return;
+  }
+  
+  /* Check coefficients format?? */
+
+  su2double xTemp, yTemp, dxduTemp, dyduTemp;
+
+  // Determine x-value at breaks
+  //su2double xKnot[k];
+  su2double *xKnot;
+  xKnot = (su2double *)malloc(sizeof(su2double)*k);
+  for(int ii = 0; ii < k; ii++) {
+    uMap3(knots,coefs,(su2double)knots[ii],&xTemp,&yTemp,&dxduTemp,&dyduTemp,k,c);
+    xKnot[ii] = xTemp;
+  }
+  // assume same 4 knots at end of knot vector; so finding upper bound on u works:
+  xKnot[k-4] += 1e-6;
+  su2double tolerance = 1e-6; // tolerance for Newton solver
+
+  int seg; // tally variable for segment number
+  su2double uLower, uUpper; // lower and upper bounds on u
+  su2double u, uNew; // values of u used in Newton iterations
+  su2double xEst, dxduEst; // estimated values of x and dxdu
+  int counter; // used to terminate Newton iterations
+  su2double errorMeasure; // used to record error in estimate of u
+  for(int ii = 0; ii < nx; ii++) {
+
+    /* Check that x is within proper range */
+    if(x[ii] > coefs[c-1] + 1e-5) {
+	
+			//printf("x (%lf) not within range specified by coefs vector (max = %lf)\n", x[ii], coefs[c-1]);
+      std::cout << "x (" << x[ii] << ") not within range specified by coefs vector"<< std::endl;
+      return;
+    }
+    if(x[ii] < coefs[0]) {
+			//printf("x (%lf) not within range specified by knots vector\n", x[ii]);
+      std::cout <<  "x (" << x[ii] << ") not within range specified by knots vector" << std::endl;
+      return;
+    }
+
+    // Determine lower and upper bounds on u
+    seg = bsp_find(x[ii],xKnot,k);
+    uLower = knots[seg - 1];
+    uUpper = knots[seg];
+      
+    // Pick a guess for u (a linear interpolation)
+    //u = (x[ii] - xKnot[seg-1])/(xKnot[seg] - xKnot[seg-1])*(uUpper - uLower) + uLower;
+    u = (uLower + uUpper)/2;
+      
+    // Calculate x and dxdu corresponding to u
+    uMap3(knots,coefs,u,&xTemp,&yTemp,&dxduTemp,&dyduTemp,k,c);
+    xEst = xTemp;
+    dxduEst = dxduTemp;
+		
+    // Perform 1 Newton iteration
+    if(dxduEst < tolerance) { uNew = 0.; }
+    else { uNew = u - (xEst - x[ii])/dxduEst; }
+      
+    // Perform remaining Newton iterations
+    counter = 0;
+    errorMeasure = fabs((uNew-u)/uNew);
+    while( errorMeasure > tolerance ) {
+      
+
+      u = uNew;
+       
+      uMap3(knots,coefs,u,&xTemp,&yTemp,&dxduTemp,&dyduTemp,k,c);
+      xEst = xTemp;
+      dxduEst = dxduTemp;       
+        
+      if(dxduEst < 1e-12) { uNew = u; }
+      else { uNew = u - (xEst - x[ii])/dxduEst; }
+        
+      counter = counter + 1;
+       
+      if( counter > 20) { break; }
+
+      errorMeasure = fabs((uNew-u)/uNew);
+       
+    }
+
+    u = uNew;
+    uMap3(knots,coefs,u,&xTemp,&yTemp,&dxduTemp,&dyduTemp,k,c);
+      
+    y[ii] = yTemp;
+      
+    if( dxduTemp < tolerance ) { dydx[ii] = 0; }
+    else { dydx[ii] = dyduTemp/dxduTemp; }      
+    
+  }
+	
+
+  // Free dynamically allocated memory
+  free(xKnot);
+
+  return;
+
+}
+
+
+
+
+void CSurfaceMovement::SetBspline(CGeometry *boundary, CConfig *config, unsigned short iDV, bool ResetDef) {
+	unsigned long iVertex, i;
+  unsigned short iMarker;
+	su2double VarCoord[3] = {0.0,0.0,0.0}, x, y, z, *Coord;
+	su2double Ampl = config->GetDV_Value(iDV);
+	
+	su2double ynew [1];
+	su2double dydx [1];
+	
+	Ampl = config->GetDV_Value(iDV);
+	
+	int jPoint, GlobalIndex;
+	
+	//Ampl = 0.0001;
+	//unsigned short int tagDV[1000];
+	//memset(tagDV,0,sizeof(short)*1000);
+		
+	int nCoefs = config->GetnBSplineCoefs();
+	
+	//exit(1);
+	//su2double bsp_coefs[36] = {0.0000, 0.0000, 0.1500, 0.1700, 0.1900, 0.2124, 0.2269, 
+	//0.2734, 0.3218, 0.3218, 0.3230, 0.3343, 0.3474, 0.4392, 0.4828, 0.5673, 0.6700, 0.6700,
+	// 0.3255, 0.3255, 0.3255, 0.3255, 0.3255, 0.3238, 0.2981, 0.2817,
+	// 0.2787, 0.2787, 0.2787, 0.2797, 0.2807, 0.2936, 0.2978, 0.3049, 0.3048, 0.3048};
+	//
+	//int bsp_coefs_dv[36] = {0, 0, 0, 0, 0, 1, 2, 3, 4, 4, 5, 6, 7, 8, 9, 10, 11, 11,
+	// 0, 0, 0, 0, 0, 12, 13, 14, 15, 15, 15, 16, 17, 18, 19, 20, 21, 21};
+	//
+	//nCoefs = 36;
+	
+	su2double *bsp_knots = new su2double[nCoefs];
+	su2double *bsp_coefs = new su2double[nCoefs];
+	int *bsp_coefs_dv	   = new int[nCoefs];
+	
+	for (i=0; i<nCoefs; i++) {
+		//cout << i << " : " << config->GetBSplineCoefs_Value(i) << " DV " << config->GetBSplineCoefs_DV_Value(i) << endl;
+		bsp_coefs[i]    = config->GetBSplineCoefs_Value(i);
+		bsp_coefs_dv[i] = config->GetBSplineCoefs_DV_Value(i);
+	}
+	
+	// --- Set knots using assumptions about 3rd degree B-spline
+	
+	int nKnots = nCoefs/2-3;
+	
+	for (i=0; i<4; i++)
+		bsp_knots[i] = 0.0;
+	
+	for (i=4; i<nKnots+3; i++) 
+		bsp_knots[i] = i-3;
+	
+	for (i=nKnots+3; i<nKnots+7; i++) 
+		bsp_knots[i] = nKnots;
+	
+	// --- Set iDV-th variable
+	
+	int flag = 0;
+
+	for (i=0; i<nCoefs; i++) {
+		if ( bsp_coefs_dv[i] == iDV+1 ) {
+			bsp_coefs[i] += Ampl;
+			flag++;
+		}
+	}
+	
+	if ( flag == 0 ) {
+		cout << "Bspline : DV " << iDV << "  is not defined!" << endl;
+    exit(EXIT_FAILURE);
+	}
+	
+	//for (int j=0; j<config->GetnDV(); j++) {
+	//	for (i=0; i<nCoefs; i++) {
+	//		if ( bsp_coefs_dv[i] == j+1 ) {
+	//			printf("%lf ", SU2_TYPE::GetValue(bsp_coefs[i]));
+	//			break;
+	//		}
+	//	}
+	//}
+	//printf("\n");
+	
+	if ( nCoefs >= 1000 ) {
+		cout << "Too many bspline coefficients! (max 1000)" << endl;
+    exit(EXIT_FAILURE);
+	}
+	
+	//cout << "DV " << iDV << " : VALUE = " << Ampl << " PARAM = " << config->GetParamDV(iDV, 0) << " " << config->GetParamDV(iDV, 1) << endl;
+	
+	//bool save_file = true;
+	//
+	//char cstr[1024];
+	//std::sprintf(cstr,"wall_%d.dat", iDV);
+	//ofstream file;
+	//
+	//if ( save_file ) {
+	//	file.open(cstr, ios::out);
+	//}
+	
+	for (iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++) {
+		for (iVertex = 0; iVertex < boundary->nVertex[iMarker]; iVertex++) {
+			VarCoord[0] = 0.0; VarCoord[1] = 0.0; VarCoord[2] = 0.0;
+			if (config->GetMarker_All_DV(iMarker) == YES) {
+        Coord = boundary->vertex[iMarker][iVertex]->GetCoord();
+        x = Coord[0]; y = Coord[1]; z = Coord[2];
+
+        jPoint = boundary->vertex[iMarker][iVertex]->GetNode();
+        GlobalIndex = boundary->node[jPoint]->GetGlobalIndex();
+				
+				int nx = 1;
+				int k  = nKnots+7;
+				int c  = nCoefs/2;
+
+				VarCoord[0] = x;
+				
+				bSplineGeo3(bsp_knots, bsp_coefs, Coord, ynew, dydx, nx, k, c);
+				
+				VarCoord[1] = ynew[0];
+				
+				//// --- Save mesh_motion.dat files for convergence study
+				//if ( save_file )
+				//	file << GlobalIndex << '\t' << x << '\t' << ynew[0] << '\n';
+				//	//file << GlobalIndex << '\t' << x << '\t' << y << '\t' << ynew[0] << '\n';
+				
+				if (boundary->GetnDim() == 3) VarCoord[2] = z; //(Ampl-1.0)*z;
+			}
+			boundary->vertex[iMarker][iVertex]->AddVarCoord(VarCoord);
+		}
+  }
+
+	//--- Write deformed surface mesh points for FD gradients in MULTIF
+	
+	bool save_file = config->GetSaveDefFile();
+	su2double Ampl_FD = 0.001;
+	
+	char cstr[1024];
+	std::sprintf(cstr,"wall_%d.dat", iDV);
+	ofstream file;
+	
+	if ( save_file ) {
+		file.open(cstr, ios::out);
+	
+		//--- Reset Ampl
+		for (i=0; i<nCoefs; i++) {
+			bsp_coefs[i] = config->GetBSplineCoefs_Value(i);
+			if ( bsp_coefs_dv[i] == iDV+1 ) {
+				bsp_coefs[i] += Ampl_FD;
+			}
+		}
+		
+		for (iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++) {
+			
+			//printf ("MARKER %d : %d ver\n", iMarker,  boundary->nVertex[iMarker]);
+			
+			for (iVertex = 0; iVertex < boundary->nVertex[iMarker]; iVertex++) {
+				
+				
+				if (config->GetMarker_All_DV(iMarker) == YES) {
+	        Coord = boundary->vertex[iMarker][iVertex]->GetCoord();
+	        x = Coord[0]; y = Coord[1]; z = Coord[2];
+
+	        jPoint = boundary->vertex[iMarker][iVertex]->GetNode();
+	        GlobalIndex = boundary->node[jPoint]->GetGlobalIndex();
+
+					int nx = 1;
+					int k  = nKnots+7;
+					int c  = nCoefs/2;
+
+					bSplineGeo3(bsp_knots, bsp_coefs, Coord, ynew, dydx, nx, k, c);
+					
+					file << GlobalIndex << '\t' << x << '\t' << ynew[0] << '\n';
+				}
+				
+			}
+	  }	
+	}
+	
+	if ( bsp_knots )
+		delete [] bsp_knots;
+		
+	if ( bsp_coefs )
+		delete [] bsp_coefs;
+		
+	if ( bsp_coefs_dv )
+		delete [] bsp_coefs_dv;
+
+	if ( save_file )
+		file.close();
+		
+}
+
+
+
 
 void CSurfaceMovement::Moving_Walls(CGeometry *geometry, CConfig *config,
                                     unsigned short iZone, unsigned long iter) {
@@ -5829,7 +6267,7 @@ void CSurfaceMovement::SetAirfoil(CGeometry *boundary, CConfig *config) {
   /*--- Open the restart file, throw an error if this fails. ---*/
   
   cout << "Enter the name of file with the airfoil information: ";
-  ierr = scanf("%s", AirfoilFile);
+  ierr = scanf("%255s", AirfoilFile);
   if (ierr == 0) { cout << "No input read!! "<< endl; exit(EXIT_FAILURE); }
   airfoil_file.open(AirfoilFile, ios::in);
   if (airfoil_file.fail()) {
@@ -5837,7 +6275,7 @@ void CSurfaceMovement::SetAirfoil(CGeometry *boundary, CConfig *config) {
     exit(EXIT_FAILURE);
   }
   cout << "Enter the format of the airfoil (Selig or Lednicer): ";
-  ierr = scanf("%s", AirfoilFormat);
+  ierr = scanf("%14s", AirfoilFormat);
   if (ierr == 0) { cout << "No input read!! "<< endl; exit(EXIT_FAILURE); }
 
   cout << "Thickness scaling (1.0 means no scaling)?: ";
@@ -5845,11 +6283,11 @@ void CSurfaceMovement::SetAirfoil(CGeometry *boundary, CConfig *config) {
   if (ierr == 0) { cout << "No input read!! "<< endl; exit(EXIT_FAILURE); }
 
   cout << "Close the airfoil (Yes or No)?: ";
-  ierr = scanf("%s", AirfoilClose);
+  ierr = scanf("%14s", AirfoilClose);
   if (ierr == 0) { cout << "No input read!! "<< endl; exit(EXIT_FAILURE); }
 
   cout << "Surface mesh orientation (clockwise, or anticlockwise): ";
-  ierr = scanf("%s", MeshOrientation);
+  ierr = scanf("%14s", MeshOrientation);
   if (ierr == 0) { cout << "No input read!! "<< endl; exit(EXIT_FAILURE); }
 
   /*--- The first line is the header ---*/

@@ -494,6 +494,16 @@ void CAdjTurbSolver::BC_HeatFlux_Wall(CGeometry *geometry, CSolver **solver_cont
   
 }
 
+void CAdjTurbSolver::BC_Isothermal_Wall_Distrib(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config, unsigned short val_marker) {
+	int rank = MASTER_NODE;
+#ifdef HAVE_MPI
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#endif
+	if (rank == MASTER_NODE)
+    cout << "BC_Isothermal_Wall_Distrib not implemented for  CAdjTurbSolver"<< endl;
+  exit(EXIT_FAILURE);
+}
+
 void CAdjTurbSolver::BC_Isothermal_Wall(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config, unsigned short val_marker) {
   
 	unsigned long iPoint, iVertex;
@@ -809,6 +819,7 @@ void CAdjTurbSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solv
 		SetRes_RMS(iVar, 0.0);
     SetRes_Max(iVar, 0.0, 0);
   }
+
   
 	/*--- Build implicit system ---*/
   
@@ -850,6 +861,9 @@ void CAdjTurbSolver::ImplicitEuler_Iteration(CGeometry *geometry, CSolver **solv
   
   CSysSolve system;
   system.Solve(Jacobian, LinSysRes, LinSysSol, geometry, config);
+
+
+ 
   
 	/*--- Update solution (system written in terms of increments) ---*/
   

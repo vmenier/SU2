@@ -1036,6 +1036,7 @@ AC_SUBST([am__untar])
 
 m4_include([m4/codi.m4])
 m4_include([m4/compiler.m4])
+m4_include([m4/inria.m4])
 m4_include([m4/metis.m4])
 m4_include([m4/parmetis.m4])
 m4_include([m4/tecio.m4])

@@ -1104,6 +1104,10 @@ void CAdjEulerSolver::SetForceProj_Vector(CGeometry *geometry, CSolver **solver_
         if (nDim == 3) z = geometry->node[iPoint]->GetCoord(2);
         
         Normal = geometry->vertex[iMarker][iVertex]->GetNormal();
+
+				printf("CHECK HERE\n");
+				exit(1);
+
         switch (config->GetKind_ObjFunc()) {
           case DRAG_COEFFICIENT :
             if (nDim == 2) { ForceProj_Vector[0] = cos(Alpha); ForceProj_Vector[1] = sin(Alpha); }
@@ -1270,8 +1274,19 @@ void CAdjEulerSolver::SetIntBoundary_Jump(CGeometry *geometry, CSolver **solver_
     for (AngleInt = 0; AngleInt < 180; AngleInt++)
       IndexNF_inv[AngleInt] = -1;
     
-    for (iIndex = 0; iIndex < IndexNF.size(); iIndex++)
-      IndexNF_inv[IndexNF[iIndex]] = iIndex;
+	if (IndexNF.size() <= 180) {
+		for (iIndex = 0; iIndex < IndexNF.size(); iIndex++)
+			IndexNF_inv[IndexNF[iIndex]] = iIndex;
+	}
+	else {
+		#ifndef HAVE_MPI
+				exit(EXIT_FAILURE);
+		#else
+				MPI_Barrier(MPI_COMM_WORLD);
+				MPI_Abort(MPI_COMM_WORLD, 1);
+				MPI_Finalize();
+		#endif
+	}
     
   }
   
@@ -4025,6 +4040,7 @@ void CAdjEulerSolver::BC_Far_Field(CGeometry *geometry, CSolver **solver_contain
         
         /*--- Gradient and limiter of Adjoint Variables ---*/
         
+
         visc_numerics->SetAdjointVarGradient(node[iPoint]->GetGradient(), node[iPoint]->GetGradient());
         
         /*--- Compute residual ---*/
@@ -5668,7 +5684,8 @@ void CAdjNSSolver::Source_Residual(CGeometry *geometry, CSolver **solver_contain
     numerics->SetPrimVarGradient(solver_container[FLOW_SOL]->node[iPoint]->GetGradient_Primitive(), NULL);
 
     /*--- Gradient of adjoint variables ---*/
-    
+    printf("SET ADJ GRAD\n");
+		exit(1);
     numerics->SetAdjointVarGradient(node[iPoint]->GetGradient(), NULL);
     numerics->SetAdjointVarLimiter(node[iPoint]->GetLimiter(), NULL);
 
@@ -6806,6 +6823,16 @@ void CAdjNSSolver::BC_HeatFlux_Wall(CGeometry *geometry, CSolver **solver_contai
     delete [] GradPhi[iDim];
   delete [] GradPhi;
   
+}
+
+void CAdjNSSolver::BC_Isothermal_Wall_Distrib(CGeometry *geometry, CSolver **solver_container, CNumerics *conv_numerics, CNumerics *visc_numerics, CConfig *config, unsigned short val_marker) {
+	int rank = MASTER_NODE;
+#ifdef HAVE_MPI
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#endif
+	if (rank == MASTER_NODE)
+    cout << "BC_Isothermal_Wall_Distrib not implemented for  CAdjNSSolver"<< endl;
+  exit(EXIT_FAILURE);
 }
 
 

@@ -216,11 +216,23 @@ void CDiscAdjSolver::SetRecording(CGeometry* geometry, CConfig *config, unsigned
 
   unsigned long iPoint;
 
+
+	  int rank;
+	#ifdef HAVE_MPI
+	  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	#else
+	  rank = MASTER_NODE;
+	#endif
+
+		
+
   /*--- Reset the solution to the initial (converged) solution ---*/
 
+	
   for (iPoint = 0; iPoint < nPoint; iPoint++){
     direct_solver->node[iPoint]->SetSolution(node[iPoint]->GetSolution_Direct());
   }
+
 
   /*--- Set the Jacobian to zero since this is not done inside the meanflow iteration
    * when running the discrete adjoint solver. ---*/
@@ -229,7 +241,9 @@ void CDiscAdjSolver::SetRecording(CGeometry* geometry, CConfig *config, unsigned
 
   /*--- Set indices to zero ---*/
 
+
   RegisterVariables(geometry, config, true);
+
 
 }
 
@@ -262,6 +276,14 @@ void CDiscAdjSolver::RegisterVariables(CGeometry *geometry, CConfig *config, boo
 
   /*--- Register farfield values as input ---*/
 
+	  int rank;
+	#ifdef HAVE_MPI
+	  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	#else
+	  rank = MASTER_NODE;
+	#endif
+
+
   if((config->GetKind_Regime() == COMPRESSIBLE) && (KindDirect_Solver == RUNTIME_FLOW_SYS)){
 
     su2double Velocity_Ref = config->GetVelocity_Ref();
@@ -283,6 +305,7 @@ void CDiscAdjSolver::RegisterVariables(CGeometry *geometry, CConfig *config, boo
       AD::RegisterInput(Pressure);
     }
 
+
     /*--- Recompute the free stream velocity ---*/
 
     if (nDim == 2) {
@@ -295,17 +318,19 @@ void CDiscAdjSolver::RegisterVariables(CGeometry *geometry, CConfig *config, boo
       config->GetVelocity_FreeStreamND()[2] = sin(Alpha)*cos(Beta)*Mach*SoundSpeed/Velocity_Ref;
     }
 
+
     config->SetTemperature_FreeStreamND(Temperature);
     direct_solver->SetTemperature_Inf(Temperature);
     config->SetPressure_FreeStreamND(Pressure);
     direct_solver->SetPressure_Inf(Pressure);
 
+
   }
-
-
+	
   /*--- Here it is possible to register other variables as input that influence the flow solution
    * and thereby also the objective function. The adjoint values (i.e. the derivatives) can be
    * extracted in the ExtractAdjointVariables routine. ---*/
+
 }
 
 void CDiscAdjSolver::RegisterOutput(CGeometry *geometry, CConfig *config){
@@ -335,6 +360,7 @@ void CDiscAdjSolver::RegisterObj_Func(CConfig *config){
   switch (config->GetKind_ObjFunc()){
   case DRAG_COEFFICIENT:
       ObjFunc_Value = direct_solver->GetTotal_CDrag();
+			//printf("DRAG VALUE = %lf\n",  SU2_TYPE::GetValue(ObjFunc_Value));
       break;
   case LIFT_COEFFICIENT:
       ObjFunc_Value = direct_solver->GetTotal_CLift();
@@ -366,6 +392,11 @@ void CDiscAdjSolver::RegisterObj_Func(CConfig *config){
   case MASS_FLOW_RATE:
     ObjFunc_Value = direct_solver->GetOneD_MassFlowRate();
     break;
+	case THRUST_NOZZLE:
+	    ObjFunc_Value = direct_solver->GetThrust_Nozzle();
+			//ObjFunc_Value = direct_solver->GetTotal_CDrag();
+			//printf("THRUST NOZZLE = %lf\n", SU2_TYPE::GetValue(ObjFunc_Value));
+	    break;
  /*--- Template for new objective functions where TemplateObjFunction()
   *  is the routine that returns the obj. function value. The computation
   * must be done while the tape is active, i.e. between AD::StartRecording() and
