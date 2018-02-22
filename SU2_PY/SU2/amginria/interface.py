@@ -1,6 +1,7 @@
 import os, sys
 import _amgio as amgio
 import numpy as np
+import pyamg
 
 def amg_call(config):
     
@@ -20,7 +21,8 @@ def amg_call(config):
     
     cmd += ' > %s' % config['amg_log']
     os.system(cmd);
-    
+
+
 def amg_call_python(mesh, config):
     
     remesh_options              = {}
@@ -29,7 +31,16 @@ def amg_call_python(mesh, config):
     remesh_options['target']    = config['size']
     remesh_options['logfile']   = config['amg_log']
     
-    print mesh['sensor']
+    Dim = mesh['dimension'];
+    
+    print remesh_options
+    
+    if Dim == 2 :
+        Ver = mesh['xyz']
+        mesh['xy'] = np.stack((Ver[:,0],Ver[:,1]), axis=1)
+        #mesh['triangles'] =  np.delete(mesh['triangles'], -1, axis=1)
+        
+        del mesh['xyz']
     
     ''' 
       TO ADD: 
@@ -38,10 +49,22 @@ def amg_call_python(mesh, config):
      'mesh_in': 'current.meshb', 'mesh_out': 'current.new.meshb'}
     ''' 
     
-
+    mesh['xy']        = mesh['xy'].tolist()
+    mesh['triangles'] = mesh['triangles'].tolist()
+    mesh['edges']     = mesh['edges'].tolist()    
+    mesh['sensor']    = mesh['sensor'].flatten().tolist()
+    
+    try:
+        mesh_new = pyamg.adapt_mesh(mesh, remesh_options)
+    except:
+        sys.stderr("## ERROR : pyamg failed.\n");
+        raise;
+    
+    return mesh_new;
+    
 # --- Read mesh using amgio module
 def read_mesh(mesh_name, solution_name):
-        
+    
     Ver = [];
     Tri = [];
     Tet = [];
@@ -75,11 +98,7 @@ def read_mesh(mesh_name, solution_name):
     
     mesh['dimension']    = Dim
     
-    if Dim == 3:
-        mesh['xyz']          = Ver; 
-    else :
-        mesh['xy'] = np.stack((Ver[:,0],Ver[:,1]), axis=1)
-    
+    mesh['xyz']          = Ver; 
         
     mesh['triangles']    = Tri;
     mesh['tetrahedra']   = Tet;
@@ -93,9 +112,10 @@ def read_mesh(mesh_name, solution_name):
     for i in range(len(SolTag)):
         mesh['id_solution_tag'][SolTag[i]] = i;
         
-    mesh['markers']      = Markers;    
+    mesh['markers'] = Markers;    
     
     return mesh;
+    
 
 
 def write_mesh(mesh_name, solution_name, mesh):
@@ -108,12 +128,7 @@ def write_mesh(mesh_name, solution_name, mesh):
     
     Dim     = mesh['dimension']
     
-    if "xyz" in mesh:
-        Ver = mesh['xyz']
-    else:
-        NbrVer = len(mesh['xy']);
-        z = np.transpose(np.zeros(NbrVer));
-        Ver = np.c_[mesh['xy'],z]
+    Ver = mesh['xyz']
     
     Ver = np.array(Ver).reshape(3*len(Ver)).tolist();
     Tri = np.array(Tri).reshape(4*len(Tri)).tolist();
@@ -134,12 +149,7 @@ def write_solution(solution_name, solution):
     Dim     = solution['dimension']
     Sol     = solution['solution']
     
-    if "xyz" in solution:
-        Ver = solution['xyz']
-    else:
-        NbrVer = len(solution['xy']);
-        z = np.transpose(np.zeros(NbrVer));
-        Ver = np.c_[solution['xy'],z]
+    Ver = solution['xyz']
     
     solution_tag = solution['solution_tag']
     
@@ -158,14 +168,7 @@ def write_solution(solution_name, solution):
 
 def create_sensor(solution, sensor):
     
-    if "xyz" in solution:
-        Ver = solution['xyz']
-    else:
-        NbrVer = len(solution['xy']);
-        z = np.transpose(np.zeros(NbrVer));
-        Ver = np.c_[solution['xy'],z]
-    
-    #Ver = solution['xyz']; # Not needed for inria outputs
+    Ver = solution['xyz']
     
     NbrVer = len(Ver)
     Ver = np.array(Ver).reshape(3*len(Ver)).tolist();
@@ -200,16 +203,11 @@ def create_sensor(solution, sensor):
         sys.stderr.write("## ERROR : Unknown sensor.\n");
         sys.exit(1);
     
-    
     sensor_wrap = dict();
     
     sensor_wrap['solution_tag'] = sensor_header;
+    sensor_wrap['xyz'] = solution['xyz'];
     
-    if "xyz" in solution:
-        sensor_wrap['xyz'] = solution['xyz'];
-    else :
-        sensor_wrap['xy'] = solution['xy'];
-        
     sensor_wrap['dimension']    = solution['dimension'];
     sensor_wrap['solution']     = sensor;
     

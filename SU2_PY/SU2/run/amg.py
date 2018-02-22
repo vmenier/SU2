@@ -10,9 +10,10 @@ def amg ( config , kind='' ):
     
     sys.stdout.write("Run Anisotropic Mesh Adaptation\n");
     
+    # Use pyamg (True) or system call to amg (False) ?
     amg_python = True;
     
-    #--- Check options
+    #--- Check config options related to mesh adaptation
     
     adap_options = ['ADAP_SIZES', 'ADAP_SUBITE', 'ADAP_SENSOR', \
     'ADAP_BACK', 'ADAP_HMAX', 'ADAP_HMIN', 'ADAP_HGRAD', 'ADAP_RESIDUAL_REDUCTION', 'ADAP_EXT_ITER', 'ADAP_SOURCE']
@@ -265,9 +266,9 @@ def amg ( config , kind='' ):
                 sensor_wrap = su2amg.create_sensor(mesh, adap_sensor);
                 mesh['sensor'] = sensor_wrap['solution'];
                 
-                su2amg.amg_call_python(mesh, config_amg)
+                mesh_new = su2amg.amg_call_python(mesh, config_amg)
                 
-                print "AMG python interface not implemented yet.\n";
+                print "SU2/AMG python interface in progress.\n";
                 sys.exit(1);
                        
             #--- Run su2
