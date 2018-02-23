@@ -11,7 +11,7 @@ def amg ( config , kind='' ):
     sys.stdout.write("Run Anisotropic Mesh Adaptation\n");
     
     # Use pyamg (True) or system call to amg (False) ?
-    amg_python = True;
+    amg_python = False;
     
     #--- Check config options related to mesh adaptation
     
@@ -76,10 +76,7 @@ def amg ( config , kind='' ):
     
     config_cfd.WRT_BINARY_RESTART  = "NO"
     #config_cfd.READ_BINARY_RESTART = "NO"
-    
-    # HACK
-    #config_cfd.EXT_ITER = 2;
-    
+        
     current_mesh     = "Initial_mesh";
     current_solution = "Initial_solution";
         

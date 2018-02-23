@@ -49,10 +49,10 @@ def amg_call_python(mesh, config):
      'mesh_in': 'current.meshb', 'mesh_out': 'current.new.meshb'}
     ''' 
     
-    mesh['xy']        = mesh['xy'].tolist()
-    mesh['triangles'] = mesh['triangles'].tolist()
-    mesh['edges']     = mesh['edges'].tolist()    
-    mesh['sensor']    = mesh['sensor'].flatten().tolist()
+    #mesh['xy']        = mesh['xy'].tolist()
+    #mesh['triangles'] = mesh['triangles'].tolist()
+    #mesh['edges']     = mesh['edges'].tolist()    
+    #mesh['sensor']    = mesh['sensor'].flatten().tolist()
     
     try:
         mesh_new = pyamg.adapt_mesh(mesh, remesh_options)
@@ -78,7 +78,7 @@ def read_mesh(mesh_name, solution_name):
         
     NbrTet = len(Tet)/5;
     Tet = np.reshape(Tet,(NbrTet, 5)).astype(int);
-
+    
     NbrTri = len(Tri)/4;
     Tri = np.reshape(Tri,(NbrTri, 4)).astype(int);
     
@@ -99,7 +99,7 @@ def read_mesh(mesh_name, solution_name):
     mesh['dimension']    = Dim
     
     mesh['xyz']          = Ver; 
-        
+    
     mesh['triangles']    = Tri;
     mesh['tetrahedra']   = Tet;
     mesh['edges']        = Edg;
@@ -116,7 +116,6 @@ def read_mesh(mesh_name, solution_name):
     
     return mesh;
     
-
 
 def write_mesh(mesh_name, solution_name, mesh):
     
@@ -143,7 +142,7 @@ def write_mesh(mesh_name, solution_name, mesh):
     
     amgio.py_WriteMesh(mesh_name, solution_name, Ver, Tri, Tet, Edg, Sol, Markers, Dim);
     
-    
+
 def write_solution(solution_name, solution):
     
     Dim     = solution['dimension']
