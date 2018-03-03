@@ -100,10 +100,7 @@ def mesh_adaptation_amg( filename             ,
     # Call CFD to generate a solution
     SU2.run.amg(config)
     
-
-
 #: def mesh_adaptation()
-
 
 # -------------------------------------------------------------------
 #  Run Main Program

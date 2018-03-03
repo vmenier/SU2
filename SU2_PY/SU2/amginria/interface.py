@@ -33,8 +33,6 @@ def amg_call_python(mesh, config):
     
     Dim = mesh['dimension'];
     
-    print remesh_options
-    
     if Dim == 2 :
         Ver = mesh['xyz']
         mesh['xy'] = np.stack((Ver[:,0],Ver[:,1]), axis=1)
@@ -49,13 +47,16 @@ def amg_call_python(mesh, config):
      'mesh_in': 'current.meshb', 'mesh_out': 'current.new.meshb'}
     ''' 
     
-    #mesh['xy']        = mesh['xy'].tolist()
-    #mesh['triangles'] = mesh['triangles'].tolist()
-    #mesh['edges']     = mesh['edges'].tolist()    
-    #mesh['sensor']    = mesh['sensor'].flatten().tolist()
+    
+    if 'xy' in mesh:    mesh['xy']  = mesh['xy'].tolist()
+    if 'xyz' in mesh:   mesh['xyz'] = mesh['xyz'].tolist()
+    
+    mesh['triangles'] = mesh['triangles'].tolist()
+    mesh['edges']     = mesh['edges'].tolist()    
+    mesh['sensor']    = mesh['sensor'].flatten().tolist()
     
     try:
-        mesh_new = pyamg.adapt_mesh(mesh, remesh_options)
+        mesh_new = pyamg.adapt_mesh(mesh, remesh_options)        
     except:
         sys.stderr("## ERROR : pyamg failed.\n");
         raise;
@@ -119,27 +120,39 @@ def read_mesh(mesh_name, solution_name):
 
 def write_mesh(mesh_name, solution_name, mesh):
     
-    Tri     = mesh['triangles']
-    Tet     = mesh['tetrahedra']
-    Edg     = mesh['edges']
-    Sol     = mesh['solution']
-    Markers = mesh['markers']
+    Tri     = [];
+    Tet     = [];
+    Edg     = [];
+    Sol     = [];
+    Markers = [];
+    Dim     = 3;
+    Ver     = [];
+        
+    if 'triangles' in mesh:     Tri     = mesh['triangles'];
+    if 'tetrahedra' in mesh:    Tet     = mesh['tetrahedra'];
+    if 'edges' in mesh:         Edg     = mesh['edges']
+    if 'solution' in mesh:      Sol     = mesh['solution']
+    if 'markers' in mesh:       Markers = mesh['markers']
+    if 'dimension' in mesh:     Dim     = mesh['dimension']
+    if 'xyz' in mesh:
+        Ver = mesh['xyz']
+        Ver = np.array(Ver).reshape(3*len(Ver)).tolist();
+    elif 'xy' in mesh:
+        Ver = np.array(mesh['xy'])
+        z = np.zeros(len(mesh['xy']));
+        Ver = np.c_[Ver, z]
+        Ver = np.array(Ver).reshape(3*len(Ver)).tolist();
     
-    Dim     = mesh['dimension']
-    
-    Ver = mesh['xyz']
-    
-    Ver = np.array(Ver).reshape(3*len(Ver)).tolist();
     Tri = np.array(Tri).reshape(4*len(Tri)).tolist();
     Tet = np.array(Tet).reshape(5*len(Tet)).tolist();
     Edg = np.array(Edg).reshape(3*len(Edg)).tolist();
     
     if len(Sol) > 1 :
         SolSiz = len(Sol[1])
-        Sol = np.array(Sol).reshape(SolSiz*len(Sol)).tolist();
+        Sol = np.array(Sol).reshape(SolSiz*len(Sol)).tolist(); 
     else:
         Sol = [];
-    
+        
     amgio.py_WriteMesh(mesh_name, solution_name, Ver, Tri, Tet, Edg, Sol, Markers, Dim);
     
 

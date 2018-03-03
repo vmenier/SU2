@@ -189,7 +189,7 @@ def amg ( config , kind='' ):
             config_amg['amg_log']     = 'ite%d.amg.stdout' % (global_iter);
             
             #--- Load su2 mesh 
-            
+                        
             mesh = su2amg.read_mesh(current_mesh, current_solution);
             
             if not amg_python : 
@@ -261,13 +261,20 @@ def amg ( config , kind='' ):
                 #--- Create sensor used to drive the adaptation
                 
                 sensor_wrap = su2amg.create_sensor(mesh, adap_sensor);
+                
                 mesh['sensor'] = sensor_wrap['solution'];
                 
                 mesh_new = su2amg.amg_call_python(mesh, config_amg)
+                mesh_new['markers'] = mesh['markers'];
+                mesh_new['dimension'] = mesh['dimension']
+                 
+                current_mesh = "ite%d.su2" % global_iter
+                current_solution = "ite%d.dat" % global_iter
                 
-                print "SU2/AMG python interface in progress.\n";
-                sys.exit(1);
-                       
+                del mesh               
+                
+                su2amg.write_mesh(current_mesh, current_solution, mesh_new);
+                            
             #--- Run su2
             
             log = 'ite%d.SU2'%global_iter;
