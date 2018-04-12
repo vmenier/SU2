@@ -1384,6 +1384,31 @@ void CTurbSASolver::Source_Residual(CGeometry *geometry, CSolver **solver_contai
     /*--- Gradient of the primitive and conservative variables ---*/
     
     numerics->SetPrimVarGradient(solver_container[FLOW_SOL]->node[iPoint]->GetGradient_Primitive(), NULL);
+
+    int proc_rank = 0;
+    #ifdef HAVE_MPI
+    	MPI_Comm_rank(MPI_COMM_WORLD, &proc_rank);
+    #endif
+    if(config->GetExtIter()==(config->GetnExtIter()-1)){
+    	char buffer_file[20];
+    	sprintf(buffer_file, "Feature%d", proc_rank);
+    	ofstream outfile(buffer_file, ofstream::app);
+    	double dudx = SU2_TYPE::GetValue(solver_container[FLOW_SOL]->node[iPoint]->GetGradient_Primitive()[1][0]);
+    	double dudy = SU2_TYPE::GetValue(solver_container[FLOW_SOL]->node[iPoint]->GetGradient_Primitive()[1][1]);
+    	double dvdx = SU2_TYPE::GetValue(solver_container[FLOW_SOL]->node[iPoint]->GetGradient_Primitive()[2][0]);
+    	double dvdy = SU2_TYPE::GetValue(solver_container[FLOW_SOL]->node[iPoint]->GetGradient_Primitive()[2][1]);
+    	double sxy = 0.5*(dudy+dvdx);
+    	double strain_rate = sqrt(2*(dudx*dudx+dvdy*dvdy+2.0*sxy*sxy));
+        double visc = SU2_TYPE::GetValue(solver_container[FLOW_SOL]->node[iPoint]->GetLaminarViscosity());
+        double dens = SU2_TYPE::GetValue(solver_container[FLOW_SOL]->node[iPoint]->GetDensity());
+        double mu_t = SU2_TYPE::GetValue(solver_container[FLOW_SOL]->node[iPoint]->GetEddyViscosity());
+        long IndexCurr  = geometry->node[iPoint]->GetGlobalIndex();
+        long IndexBndy  = geometry->node[iPoint]->GetVertex_nearWall();
+        double walldist = SU2_TYPE::GetValue(geometry->node[iPoint]->GetWall_Distance());
+	double p1 = dens*strain_rate*walldist*walldist/visc;
+    	outfile<<scientific<<setprecision(15)<<IndexCurr<<'\t'<<p1<<'\t'<<walldist<<'\t'<<IndexBndy<<'\t'<<strain_rate<<'\t'<<mu_t<<endl;
+    	outfile.close();
+	}
     
     /*--- Set vorticity and strain rate magnitude ---*/
     
@@ -1411,6 +1436,8 @@ void CTurbSASolver::Source_Residual(CGeometry *geometry, CSolver **solver_contai
     numerics->SetDistance(geometry->node[iPoint]->GetWall_Distance(), 0.0);
     
     /*--- Compute the source term ---*/
+
+    config->SetSA_Production_Factor(config->GetbetaArr(geometry->node[iPoint]->GetGlobalIndex()));
     
     numerics->ComputeResidual(Residual, Jacobian_i, NULL, config);
     

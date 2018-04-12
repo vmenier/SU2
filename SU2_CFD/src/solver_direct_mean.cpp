@@ -15015,7 +15015,7 @@ void CNSSolver::Viscous_Forces(CGeometry *geometry, CConfig *config) {
         /*--- Compute wall shear stress (using the stress tensor). Compute wall skin friction coefficient, and heat flux on the wall ---*/
         
         TauNormal = 0.0; for (iDim = 0; iDim < nDim; iDim++) TauNormal += TauElem[iDim] * UnitNormal[iDim];
-        
+
         WallShearStress = 0.0;
         for (iDim = 0; iDim < nDim; iDim++) {
           TauTangent[iDim] = TauElem[iDim] - TauNormal * UnitNormal[iDim];
@@ -15024,6 +15024,18 @@ void CNSSolver::Viscous_Forces(CGeometry *geometry, CConfig *config) {
         }
         WallShearStress = sqrt(WallShearStress);
         
+        int proc_rank = 0;
+        #ifdef HAVE_MPI
+          MPI_Comm_rank(MPI_COMM_WORLD, &proc_rank);
+        #endif
+        if(config->GetExtIter()==(config->GetnExtIter()-1)){
+          char buffer_file[20];
+          sprintf(buffer_file, "Tau%d", proc_rank);
+          ofstream outfile(buffer_file, ofstream::app);
+          outfile<<scientific<<setprecision(15)<<geometry->node[iPoint]->GetGlobalIndex()<<'\t'<<sqrt(SU2_TYPE::GetValue(TauTangent[0]*TauTangent[0]+TauTangent[1]*TauTangent[1]))<<endl;
+          outfile.close();
+        }
+
         for (iDim = 0; iDim < nDim; iDim++) WallDist[iDim] = (Coord[iDim] - Coord_Normal[iDim]);
         WallDistMod = 0.0; for (iDim = 0; iDim < nDim; iDim++) WallDistMod += WallDist[iDim]*WallDist[iDim]; WallDistMod = sqrt(WallDistMod);
         

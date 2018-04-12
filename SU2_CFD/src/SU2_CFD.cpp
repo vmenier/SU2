@@ -163,6 +163,25 @@ int main(int argc, char *argv[]) {
     geometry_container[iZone][MESH_0]->SetBoundaries(config_container[iZone]);
     
   }
+  
+  ifstream infile("beta_for_su2.dat");
+  unsigned long counter = geometry_container[ZONE_0][MESH_0]->GetGlobal_nPointDomain();
+  double *val_betaArr = new double [geometry_container[ZONE_0][MESH_0]->GetGlobal_nPointDomain()];
+  if (infile){
+  	for(int i=0; i<geometry_container[ZONE_0][MESH_0]->GetGlobal_nPointDomain(); i++){
+  		int index;
+  		infile>>index;
+  		infile>>val_betaArr[index];
+  	}
+  }
+  else {
+  	for(int i=0; i<geometry_container[ZONE_0][MESH_0]->GetGlobal_nPointDomain(); i++){
+  		val_betaArr[i]=SU2_TYPE::GetValue(config_container[ZONE_0]->GetSA_Production_Factor());
+  	}
+  }
+  infile.close();
+  config_container[ZONE_0]->SetbetaArr(val_betaArr);
+  
 
   if (rank == MASTER_NODE)
     cout << endl <<"------------------------- Geometry Preprocessing ------------------------" << endl;
@@ -567,6 +586,85 @@ int main(int argc, char *argv[]) {
 
   delete driver;
   */
+
+  // Compile the files into one
+
+  if (rank==MASTER_NODE){
+
+	int filenum=0;
+
+	int stat = system("rm -f sample_features.dat");
+
+	double* tauwallf = new double [counter];
+	double* srf = new double [counter];
+	double* p1f = new double [counter];
+	double* p3f = new double [counter]; 
+	double* muf = new double [counter];
+	unsigned long* neighbf = new unsigned long [counter];
+
+	while(true){
+
+		char Buffer_File[20];
+	  	sprintf(Buffer_File, "Feature%d", filenum);
+  		ifstream infile(Buffer_File);
+  		unsigned long PointID, Neighbor;
+  		double p1, strain_rate, p3, mu_t;
+  		if (infile){
+  			while(infile>>PointID>>p1>>p3>>Neighbor>>strain_rate>>mu_t){
+  				p1f[PointID]=p1;
+  				p3f[PointID]=p3;
+  				srf[PointID]=strain_rate;
+  				muf[PointID]=mu_t;
+  				neighbf[PointID]=Neighbor;
+  			}
+  		}
+  		else break;
+  		infile.close();
+  		char command[50];
+  		sprintf(command, "rm Feature%d", filenum);
+  		stat = system(command);
+
+  		sprintf(Buffer_File, "Tau%d", filenum);
+  		infile.open(Buffer_File);
+  		double TauWall;
+  		if (infile){
+  			while(infile>>PointID>>TauWall){
+  				tauwallf[PointID]=TauWall;
+  			}
+  		}
+  		infile.close();
+  		sprintf(command, "rm Tau%d", filenum);
+  		stat = system(command);
+
+  		filenum++;
+  	}
+	
+	ofstream outfile("sample_features.dat");
+	
+	for(int i=0; i<counter; i++){
+	
+		unsigned long nind = neighbf[i];
+		double p2f = muf[i]*srf[i]/max(tauwallf[nind],1E-10);
+		outfile<<scientific<<setprecision(15)<<i<<'\t'<<p1f[i]<<'\t'<<p2f<<'\t'<<p3f[i]<<endl;
+	
+	}
+
+	outfile.close();
+
+	outfile.open("verification.dat");
+	
+	for(int i=0; i<counter; i++){
+	
+		unsigned long nind = neighbf[i];
+		outfile<<scientific<<setprecision(15)<<i<<'\t'<<srf[i]<<'\t'<<tauwallf[nind]<<endl;
+	
+	}
+
+	outfile.close();
+
+	infile.close();
+
+  }
 
   /*--- Geometry class deallocation ---*/
   if (rank == MASTER_NODE)

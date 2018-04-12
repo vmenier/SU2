@@ -8677,8 +8677,9 @@ void CPhysicalGeometry::ComputeWall_Distance(CConfig *config) {
   
   /*--- Allocate an array to hold boundary node coordinates ---*/
   
-  su2double **Coord_bound;
+  su2double **Coord_bound, **pNormal, *pind;
   Coord_bound = new su2double* [nVertex_SolidWall];
+  pind        = new su2double  [nVertex_SolidWall];
   for (iVertex = 0; iVertex < nVertex_SolidWall; iVertex++)
     Coord_bound[iVertex] = new su2double [nDim];
   
@@ -8692,6 +8693,7 @@ void CPhysicalGeometry::ComputeWall_Distance(CConfig *config) {
         iPoint = vertex[iMarker][iVertex]->GetNode();
         for (iDim = 0; iDim < nDim; iDim++)
           Coord_bound[nVertex_SolidWall][iDim] = node[iPoint]->GetCoord(iDim);
+	  pind[nVertex_SolidWall]              = node[iPoint]->GetGlobalIndex();
         nVertex_SolidWall++;
       }
   }
@@ -8731,6 +8733,7 @@ void CPhysicalGeometry::ComputeWall_Distance(CConfig *config) {
             (coord[iDim] - Coord_bound[iVertex_nearestWall][iDim]);
       }
       node[iPoint]->SetWall_Distance(sqrt(dist));
+      node[iPoint]->SetVertex_nearWall(pind[iVertex_nearestWall]);
     }
   }
   else {
@@ -8776,9 +8779,12 @@ void CPhysicalGeometry::ComputeWall_Distance(CConfig *config) {
   /*--- Create and initialize to zero some buffers to hold the coordinates
    of the boundary nodes that are communicated from each partition (all-to-all). ---*/
   
-  su2double *Buffer_Send_Coord    = new su2double [MaxLocalVertex_NS*nDim];
-  su2double *Buffer_Receive_Coord = new su2double [nProcessor*MaxLocalVertex_NS*nDim];
-  unsigned long nBuffer = MaxLocalVertex_NS*nDim;
+  su2double *Buffer_Send_Coord        = new su2double [MaxLocalVertex_NS*nDim];
+  unsigned long *Buffer_Send_Index    = new unsigned long [MaxLocalVertex_NS];
+  su2double *Buffer_Receive_Coord     = new su2double [nProcessor*MaxLocalVertex_NS*nDim];
+  unsigned long *Buffer_Receive_Index = new unsigned long [nProcessor*MaxLocalVertex_NS];
+  unsigned long nBuffer               = MaxLocalVertex_NS*nDim;
+  unsigned long nBufferIndex          = MaxLocalVertex_NS;
   
   for (iVertex = 0; iVertex < MaxLocalVertex_NS; iVertex++)
     for (iDim = 0; iDim < nDim; iDim++)
@@ -8793,12 +8799,15 @@ void CPhysicalGeometry::ComputeWall_Distance(CConfig *config) {
         (config->GetMarker_All_KindBC(iMarker) == ISOTHERMAL)              )
       for (iVertex = 0; iVertex < GetnVertex(iMarker); iVertex++) {
         iPoint = vertex[iMarker][iVertex]->GetNode();
-        for (iDim = 0; iDim < nDim; iDim++)
+        for (iDim = 0; iDim < nDim; iDim++){
           Buffer_Send_Coord[nVertex_SolidWall*nDim+iDim] = node[iPoint]->GetCoord(iDim);
+      	}
+        Buffer_Send_Index[nVertex_SolidWall] = node[iPoint]->GetGlobalIndex();
         nVertex_SolidWall++;
       }
   
   SU2_MPI::Allgather(Buffer_Send_Coord, nBuffer, MPI_DOUBLE, Buffer_Receive_Coord, nBuffer, MPI_DOUBLE, MPI_COMM_WORLD);
+  SU2_MPI::Allgather(Buffer_Send_Index, nBufferIndex, MPI_UNSIGNED_LONG, Buffer_Receive_Index, nBufferIndex, MPI_UNSIGNED_LONG, MPI_COMM_WORLD);
   
   /*--- Loop over all interior mesh nodes on the local partition and compute
    the distances to each of the no-slip boundary nodes in the entire mesh.
@@ -8840,6 +8849,7 @@ void CPhysicalGeometry::ComputeWall_Distance(CConfig *config) {
             (coord[iDim] - Buffer_Receive_Coord[iVertex_nearestWall*nDim+iDim]);
       }
       node[iPoint]->SetWall_Distance(sqrt(dist));
+      node[iPoint]->SetVertex_nearWall(Buffer_Receive_Index[iVertex_nearestWall]);
     }
   }
   else {
@@ -8851,6 +8861,8 @@ void CPhysicalGeometry::ComputeWall_Distance(CConfig *config) {
   
   delete[] Buffer_Send_Coord;
   delete[] Buffer_Receive_Coord;
+  delete[] Buffer_Send_Index;
+  delete[] Buffer_Receive_Index;
   delete[] Buffer_Send_nVertex;
   delete[] Buffer_Receive_nVertex;
   

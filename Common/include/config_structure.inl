@@ -206,6 +206,8 @@ inline su2double CConfig::GetPressure_FreeStream(void) { return Pressure_FreeStr
 
 inline su2double CConfig::GetSA_Production_Factor(void) { return SA_Production_Factor; }
 
+inline double CConfig::GetbetaArr(int index) { return betaArr[index]; }
+
 inline su2double CConfig::GetTemperature_ve_FreeStream(void) { return Temperature_ve_FreeStream; }
 
 inline su2double CConfig::GetPrandtl_Lam(void) { return Prandtl_Lam; }
@@ -306,6 +308,8 @@ inline su2double CConfig::GetFroude(void) { return Froude; }
 inline void CConfig::SetPressure_FreeStreamND(su2double val_pressure_freestreamnd) { Pressure_FreeStreamND = val_pressure_freestreamnd; }
 
 inline void CConfig::SetSA_Production_Factor(su2double val_SA_Production_Factor) { SA_Production_Factor = val_SA_Production_Factor; }
+
+inline void CConfig::SetbetaArr(double *val_betaArr){ betaArr = val_betaArr; }
 
 inline void CConfig::SetPressure_FreeStream(su2double val_pressure_freestream) { Pressure_FreeStream = val_pressure_freestream; }
 

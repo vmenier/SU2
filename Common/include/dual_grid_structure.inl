@@ -215,11 +215,15 @@ inline bool CPoint::GetDomain(void) { return Domain; }
 
 inline void CPoint::SetWall_Distance(su2double val_distance) { Wall_Distance = val_distance; }
 
+inline void CPoint::SetVertex_nearWall(unsigned long val_Vertex_nearWall) { Vertex_nearWall = val_Vertex_nearWall; }
+
 inline void CPoint::SetCurvature(su2double val_curvature) { Curvature = val_curvature; }
 
 inline void CPoint::SetSharpEdge_Distance(su2double val_distance) { SharpEdge_Distance = val_distance; }
 
 inline su2double CPoint::GetWall_Distance(void) { return Wall_Distance; }
+
+inline unsigned long CPoint::GetVertex_nearWall(void) { return Vertex_nearWall; }
 
 inline su2double CPoint::GetCurvature(void) { return Curvature; }
 

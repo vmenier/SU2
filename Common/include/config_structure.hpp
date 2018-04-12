@@ -730,6 +730,7 @@ private:
   bool ParMETIS;      /*!< \brief Boolean for activating ParMETIS mode (while testing). */
   unsigned short DirectDiff; /*!< \brief Direct Differentation mode. */
   bool DiscreteAdjoint; /*!< \brief AD-based discrete adjoint mode. */
+  double *betaArr;		/*!< \brief Array for values of SA_Production_Factor >*/
 
   
   /*--- all_options is a map containing all of the options. This is used during config file parsing
@@ -1469,6 +1470,8 @@ public:
 
 	su2double GetSA_Production_Factor(void);
 
+	double GetbetaArr(int index);
+
 	/*!
 	 * \brief Get the value of the non-dimensionalized freestream pressure.
 	 * \return Non-dimensionalized freestream pressure.
@@ -1861,6 +1864,8 @@ public:
 	void SetPressure_FreeStream(su2double val_pressure_freestream);
 	
 	void SetSA_Production_Factor(su2double val_SA_Production_Factor);
+
+	void SetbetaArr(double *val_betaArr);
 
   /*!
 	 * \brief Set the Froude number for free surface problems.
