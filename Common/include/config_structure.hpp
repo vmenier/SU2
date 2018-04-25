@@ -201,7 +201,6 @@ private:
   unsigned short nMarker_Euler,	/*!< \brief Number of Euler wall markers. */
   nMarker_FarField,				/*!< \brief Number of far-field markers. */
   nMarker_Custom,
-	nMarker_Thrust,
   nMarker_SymWall,				/*!< \brief Number of symmetry wall markers. */
   nMarker_Pressure,				/*!< \brief Number of pressure wall markers. */
   nMarker_PerBound,				/*!< \brief Number of periodic boundary markers. */
@@ -244,7 +243,6 @@ private:
   string *Marker_Euler,			/*!< \brief Euler wall markers. */
   *Marker_FarField,				/*!< \brief Far field markers. */
   *Marker_Custom,
-	*Marker_Thrust,
   *Marker_SymWall,				/*!< \brief Symmetry wall markers. */
   *Marker_Pressure,				/*!< \brief Pressure boundary markers. */
   *Marker_PerBound,				/*!< \brief Periodic boundary markers. */
@@ -608,6 +606,7 @@ private:
   nMarker_GeoEval,					/*!< \brief Number of markers for the objective function. */
   nMarker_ZoneInterface, /*!< \brief Number of markers in the zone interface. */
   nMarker_Plotting,					/*!< \brief Number of markers to plot. */
+	nMarker_Thrust,	          /*!< \brief Number of markers for thrust computation. */
   nMarker_Analyze,					/*!< \brief Number of markers to plot. */
   nMarker_Moving,               /*!< \brief Number of markers in motion (DEFORMING, MOVING_WALL, or FLUID_STRUCTURE). */
   nMarker_DV,               /*!< \brief Number of markers affected by the design variables. */
@@ -616,6 +615,7 @@ private:
   *Marker_Designing,         /*!< \brief Markers to plot. */
   *Marker_GeoEval,         /*!< \brief Markers to plot. */
   *Marker_Plotting,          /*!< \brief Markers to plot. */
+	*Marker_Thrust,	          /*!< \brief Markers for thrust computation. */
   *Marker_Analyze,          /*!< \brief Markers to plot. */
   *Marker_ZoneInterface,          /*!< \brief Markers in the FSI interface. */
   *Marker_Moving,            /*!< \brief Markers in motion (DEFORMING, MOVING_WALL, or FLUID_STRUCTURE). */
@@ -627,6 +627,7 @@ private:
   unsigned short  *Marker_All_Monitoring,        /*!< \brief Global index for monitoring using the grid information. */
   *Marker_All_GeoEval,       /*!< \brief Global index for geometrical evaluation. */
   *Marker_All_Plotting,        /*!< \brief Global index for plotting using the grid information. */
+	*Marker_All_Thrust,        /*!< \brief Global index for plotting using the grid information. */
   *Marker_All_Analyze,        /*!< \brief Global index for plotting using the grid information. */
   *Marker_All_ZoneInterface,        /*!< \brief Global index for FSI interface markers using the grid information. */
   *Marker_All_Turbomachinery,        /*!< \brief Global index for Turbomachinery markers using the grid information. */
@@ -639,6 +640,7 @@ private:
   *Marker_CfgFile_Designing,      /*!< \brief Global index for monitoring using the config information. */
   *Marker_CfgFile_GeoEval,      /*!< \brief Global index for monitoring using the config information. */
   *Marker_CfgFile_Plotting,     /*!< \brief Global index for plotting using the config information. */
+	*Marker_CfgFile_Thrust,     /*!< \brief Global index for thrust using the config information. */
   *Marker_CfgFile_Analyze,     /*!< \brief Global index for plotting using the config information. */
   *Marker_CfgFile_ZoneInterface,     /*!< \brief Global index for FSI interface using the config information. */
   *Marker_CfgFile_Turbomachinery,     /*!< \brief Global index for Turbomachinery  using the config information. */
@@ -2937,6 +2939,14 @@ public:
    * \param[in] val_plotting - 0 or 1 depending if the the marker is going to be plot.
    */
   void SetMarker_All_Plotting(unsigned short val_marker, unsigned short val_plotting);
+	
+	/*!
+	 * \brief Set if a marker <i>val_marker</i> is going to be plot <i>val_plotting</i>
+	 *        (read from the config file).
+	 * \param[in] val_marker - Index of the marker in which we are interested.
+	 * \param[in] val_plotting - 0 or 1 depending if the the marker is going to be plot.
+	 */
+	void SetMarker_All_Thrust(unsigned short val_marker, unsigned short val_thrust);
   
   /*!
    * \brief Set if a marker <i>val_marker</i> is going to be plot <i>val_plotting</i>
@@ -3049,7 +3059,14 @@ public:
    * \return 0 or 1 depending if the marker is going to be plotted.
    */
   unsigned short GetMarker_All_Plotting(unsigned short val_marker);
-  
+	
+	/*!
+	 * \brief Get the thrust information for a marker <i>val_marker</i>.
+	 * \param[in] val_marker - 0 or 1 depending if the the marker is going to be moved.
+	 * \return 0 or 1 depending if the marker is going to be plotted.
+	 */
+	unsigned short GetMarker_All_Thrust(unsigned short val_thrust);
+	 
   /*!
    * \brief Get the plotting information for a marker <i>val_marker</i>.
    * \param[in] val_marker - 0 or 1 depending if the the marker is going to be moved.
@@ -5353,7 +5370,13 @@ public:
    * \return Plotting information of the boundary in the config information for the marker <i>val_marker</i>.
    */
   unsigned short GetMarker_CfgFile_Plotting(string val_marker);
-  
+	
+	/*!
+	 * \brief Get the thrust information from the config definition for the marker <i>val_marker</i>.
+	 * \return Thrust information of the boundary in the config information for the marker <i>val_marker</i>.
+	 */
+	unsigned short GetMarker_CfgFile_Thrust(string val_marker);
+	  
   /*!
    * \brief Get the plotting information from the config definition for the marker <i>val_marker</i>.
    * \return Plotting information of the boundary in the config information for the marker <i>val_marker</i>.

@@ -5661,6 +5661,7 @@ void CEulerSolver::Pressure_Forces(CGeometry *geometry, CConfig *config) {
   
 }
 
+
 void CEulerSolver::Momentum_Forces(CGeometry *geometry, CConfig *config) {
   
   unsigned long iVertex, iPoint;
@@ -5695,7 +5696,7 @@ void CEulerSolver::Momentum_Forces(CGeometry *geometry, CConfig *config) {
   }
   bool grid_movement         = config->GetGrid_Movement();
   bool axisymmetric          = config->GetAxisymmetric();
-  
+	  
   /*--- Evaluate reference values for non-dimensionalization.
    For dynamic meshes, use the motion Mach number as a reference value
    for computing the force coefficients. Otherwise, use the freestream values,

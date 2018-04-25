@@ -292,6 +292,7 @@ void CConfig::SetPointersNull(void) {
   Marker_CfgFile_Monitoring   = NULL;   Marker_All_Monitoring    = NULL;
   Marker_CfgFile_Designing    = NULL;   Marker_All_Designing     = NULL;
   Marker_CfgFile_Plotting     = NULL;   Marker_All_Plotting      = NULL;
+	Marker_CfgFile_Thrust       = NULL;   Marker_All_Thrust    	   = NULL;
   Marker_CfgFile_Analyze      = NULL;   Marker_All_Analyze       = NULL;
   Marker_CfgFile_DV           = NULL;   Marker_All_DV            = NULL;
   Marker_CfgFile_Moving       = NULL;   Marker_All_Moving        = NULL;
@@ -300,7 +301,7 @@ void CConfig::SetPointersNull(void) {
   
   Marker_DV                   = NULL;   Marker_Moving            = NULL;    Marker_Monitoring = NULL;
   Marker_Designing            = NULL;   Marker_GeoEval           = NULL;    Marker_Plotting   = NULL;
-  Marker_Analyze              = NULL;   Marker_WallFunctions     = NULL;
+  Marker_Analyze              = NULL;   Marker_WallFunctions     = NULL;    Marker_Thrust     = NULL;
   Marker_CfgFile_KindBC       = NULL;   Marker_All_KindBC        = NULL;
 
   Kind_WallFunctions       = NULL;
@@ -308,7 +309,7 @@ void CConfig::SetPointersNull(void) {
   DoubleInfo_WallFunctions = NULL;
   
   /*--- Marker Pointers ---*/
-
+	
   Marker_Euler                = NULL;    Marker_FarField         = NULL;    Marker_Custom         = NULL;
   Marker_SymWall              = NULL;    Marker_Pressure         = NULL;    Marker_PerBound       = NULL;
   Marker_PerDonor             = NULL;    Marker_NearFieldBound   = NULL;    Marker_InterfaceBound = NULL;
@@ -323,7 +324,7 @@ void CConfig::SetPointersNull(void) {
   Marker_CfgFile_KindBC       = NULL;    Marker_All_SendRecv     = NULL;    Marker_All_PerBound   = NULL;
   Marker_ZoneInterface        = NULL;    Marker_All_ZoneInterface= NULL;    Marker_Riemann        = NULL;
 
-  Marker_Fluid_InterfaceBound = NULL;    Marker_Thrust           = NULL;
+  Marker_Fluid_InterfaceBound = NULL;
 	Marker_Damper           = NULL;
 	
 
@@ -3592,10 +3593,6 @@ void CConfig::SetMarkers(unsigned short val_software) {
   nMarker_Supersonic_Inlet + nMarker_Supersonic_Outlet + nMarker_Displacement + nMarker_Load +
   nMarker_FlowLoad + nMarker_Custom + nMarker_Damper +  nMarker_Thrust +
   nMarker_Clamped + nMarker_Load_Sine + nMarker_Load_Dir + nMarker_Disp_Dir +
-
-			
-			
-			
   nMarker_ActDiskInlet + nMarker_ActDiskOutlet;
   
   /*--- Add the possible send/receive domains ---*/
@@ -3614,6 +3611,7 @@ void CConfig::SetMarkers(unsigned short val_software) {
   Marker_All_Monitoring           = new unsigned short[nMarker_All];	// Store whether the boundary should be monitored.
   Marker_All_Designing            = new unsigned short[nMarker_All];    // Store whether the boundary should be designed.
   Marker_All_Plotting             = new unsigned short[nMarker_All];	// Store whether the boundary should be plotted.
+	Marker_All_Thrust               = new unsigned short[nMarker_All];	// Store whether thrust should be computed.
   Marker_All_Analyze              = new unsigned short[nMarker_All];	// Store whether the boundary should be plotted.
   Marker_All_ZoneInterface        = new unsigned short[nMarker_All];	// Store whether the boundary is in the FSI interface.
   Marker_All_GeoEval              = new unsigned short[nMarker_All];	// Store whether the boundary should be geometry evaluation.
@@ -3633,6 +3631,7 @@ void CConfig::SetMarkers(unsigned short val_software) {
     Marker_All_GeoEval[iMarker_All]              = 0;
     Marker_All_Designing[iMarker_All]            = 0;
     Marker_All_Plotting[iMarker_All]             = 0;
+		Marker_All_Thrust[iMarker_All]               = 0;
     Marker_All_Analyze[iMarker_All]              = 0;
     Marker_All_ZoneInterface[iMarker_All]        = 0;
     Marker_All_DV[iMarker_All]                   = 0;
@@ -3650,6 +3649,7 @@ void CConfig::SetMarkers(unsigned short val_software) {
   Marker_CfgFile_Monitoring           = new unsigned short[nMarker_CfgFile];
   Marker_CfgFile_Designing            = new unsigned short[nMarker_CfgFile];
   Marker_CfgFile_Plotting             = new unsigned short[nMarker_CfgFile];
+	Marker_CfgFile_Thrust               = new unsigned short[nMarker_CfgFile];
   Marker_CfgFile_Analyze              = new unsigned short[nMarker_CfgFile];
   Marker_CfgFile_GeoEval              = new unsigned short[nMarker_CfgFile];
   Marker_CfgFile_ZoneInterface        = new unsigned short[nMarker_CfgFile];
@@ -3667,6 +3667,7 @@ void CConfig::SetMarkers(unsigned short val_software) {
     Marker_CfgFile_GeoEval[iMarker_CfgFile]              = 0;
     Marker_CfgFile_Designing[iMarker_CfgFile]            = 0;
     Marker_CfgFile_Plotting[iMarker_CfgFile]             = 0;
+		Marker_CfgFile_Thrust[iMarker_CfgFile]               = 0;
     Marker_CfgFile_Analyze[iMarker_CfgFile]              = 0;
     Marker_CfgFile_ZoneInterface[iMarker_CfgFile]        = 0;
     Marker_CfgFile_DV[iMarker_CfgFile]                   = 0;
@@ -3722,7 +3723,7 @@ void CConfig::SetMarkers(unsigned short val_software) {
     Marker_CfgFile_KindBC[iMarker_CfgFile] = FAR_FIELD;
     iMarker_CfgFile++;
   }
-
+	
   for (iMarker_SymWall = 0; iMarker_SymWall < nMarker_SymWall; iMarker_SymWall++) {
     Marker_CfgFile_TagBound[iMarker_CfgFile] = Marker_SymWall[iMarker_SymWall];
     Marker_CfgFile_KindBC[iMarker_CfgFile] = SYMMETRY_PLANE;
@@ -3741,7 +3742,7 @@ void CConfig::SetMarkers(unsigned short val_software) {
     Marker_CfgFile_PerBound[iMarker_CfgFile] = iMarker_PerBound + 1;
     iMarker_CfgFile++;
   }
-
+	
   ActDisk_DeltaPress = new su2double[nMarker_ActDiskInlet];
   ActDisk_DeltaTemp = new su2double[nMarker_ActDiskInlet];
   ActDisk_TotalPressRatio = new su2double[nMarker_ActDiskInlet];
@@ -3777,7 +3778,6 @@ void CConfig::SetMarkers(unsigned short val_software) {
     ActDisk_Area[iMarker_ActDiskInlet] = 0.0;
     ActDisk_ReverseMassFlow[iMarker_ActDiskInlet] = 0.0;
   }
-  
   
   ActDiskInlet_MassFlow = new su2double[nMarker_ActDiskInlet];
   ActDiskInlet_Temperature = new su2double[nMarker_ActDiskInlet];
@@ -3963,11 +3963,6 @@ void CConfig::SetMarkers(unsigned short val_software) {
     iMarker_CfgFile++;
   }
 	
-  for (iMarker_Thrust = 0; iMarker_Thrust < nMarker_Thrust; iMarker_Thrust++) {
-    Marker_CfgFile_TagBound[iMarker_CfgFile] = Marker_Thrust[iMarker_Thrust];
-    Marker_CfgFile_KindBC[iMarker_CfgFile] = THRUST_BOUNDARY;
-    iMarker_CfgFile++;
-  }
 
   for (iMarker_Outlet = 0; iMarker_Outlet < nMarker_Outlet; iMarker_Outlet++) {
     Marker_CfgFile_TagBound[iMarker_CfgFile] = Marker_Outlet[iMarker_Outlet];
@@ -4062,6 +4057,14 @@ void CConfig::SetMarkers(unsigned short val_software) {
     for (iMarker_Plotting = 0; iMarker_Plotting < nMarker_Plotting; iMarker_Plotting++)
       if (Marker_CfgFile_TagBound[iMarker_CfgFile] == Marker_Plotting[iMarker_Plotting])
         Marker_CfgFile_Plotting[iMarker_CfgFile] = YES;
+  }
+	
+	
+  for (iMarker_CfgFile = 0; iMarker_CfgFile < nMarker_CfgFile; iMarker_CfgFile++) {
+    Marker_CfgFile_Thrust[iMarker_CfgFile] = NO;
+    for (iMarker_Thrust = 0; iMarker_Thrust < nMarker_Thrust; iMarker_Thrust++)
+      if (Marker_CfgFile_TagBound[iMarker_CfgFile] == Marker_Thrust[iMarker_Thrust])
+        Marker_CfgFile_Thrust[iMarker_CfgFile] = YES;
   }
   
   for (iMarker_CfgFile = 0; iMarker_CfgFile < nMarker_CfgFile; iMarker_CfgFile++) {
@@ -4366,6 +4369,16 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
       for (iMarker_Plotting = 0; iMarker_Plotting < nMarker_Plotting; iMarker_Plotting++) {
         cout << Marker_Plotting[iMarker_Plotting];
         if (iMarker_Plotting < nMarker_Plotting-1) cout << ", ";
+        else cout <<".";
+      }
+      cout<< endl;
+    }
+		
+    if (nMarker_Thrust != 0) {
+      cout << "Surface(s) where thrust is evaluated: ";
+      for (iMarker_Thrust = 0; iMarker_Thrust < nMarker_Thrust; iMarker_Thrust++) {
+        cout << Marker_Thrust[iMarker_Thrust];
+        if (iMarker_Thrust < nMarker_Thrust-1) cout << ", ";
         else cout <<".";
       }
       cout<< endl;
@@ -5557,17 +5570,7 @@ void CConfig::SetOutput(unsigned short val_software, unsigned short val_izone) {
       else cout <<"."<< endl;
     }
   }
-
-  if (nMarker_Thrust != 0) {
-    cout << "Nozzle thrust boundary marker(s): ";
-    for (iMarker_Thrust = 0; iMarker_Thrust < nMarker_Thrust; iMarker_Thrust++) {
-      cout << Marker_Thrust[iMarker_Thrust];
-      if (iMarker_Thrust < nMarker_Thrust-1) cout << ", ";
-      else cout <<"."<< endl;
-    }
-  }
-
-
+	
   if (nMarker_ActDiskInlet != 0) {
     cout << "Actuator disk (inlet) boundary marker(s): ";
     for (iMarker_ActDiskInlet = 0; iMarker_ActDiskInlet < nMarker_ActDiskInlet; iMarker_ActDiskInlet++) {
@@ -5793,6 +5796,13 @@ unsigned short CConfig::GetMarker_CfgFile_Plotting(string val_marker) {
   return Marker_CfgFile_Plotting[iMarker_CfgFile];
 }
 
+unsigned short CConfig::GetMarker_CfgFile_Thrust(string val_marker) {
+  unsigned short iMarker_CfgFile;
+  for (iMarker_CfgFile = 0; iMarker_CfgFile < nMarker_CfgFile; iMarker_CfgFile++)
+    if (Marker_CfgFile_TagBound[iMarker_CfgFile] == val_marker) break;
+  return Marker_CfgFile_Thrust[iMarker_CfgFile];
+}
+
 unsigned short CConfig::GetMarker_CfgFile_Analyze(string val_marker) {
   unsigned short iMarker_CfgFile;
   for (iMarker_CfgFile = 0; iMarker_CfgFile < nMarker_CfgFile; iMarker_CfgFile++)
@@ -5968,6 +5978,9 @@ CConfig::~CConfig(void) {
   
   if (Marker_CfgFile_Plotting != NULL) delete[] Marker_CfgFile_Plotting;
   if (Marker_All_Plotting     != NULL) delete[] Marker_All_Plotting;
+	
+  if (Marker_CfgFile_Thrust != NULL) delete[] Marker_CfgFile_Thrust;
+  if (Marker_All_Thrust     != NULL) delete[] Marker_All_Thrust;
   
   if (Marker_CfgFile_Analyze != NULL) delete[] Marker_CfgFile_Analyze;
   if (Marker_All_Analyze  != NULL) delete[] Marker_All_Analyze;
@@ -5990,6 +6003,7 @@ CConfig::~CConfig(void) {
   if (Marker_Designing != NULL)       delete[] Marker_Designing;
   if (Marker_GeoEval != NULL)         delete[] Marker_GeoEval;
   if (Marker_Plotting != NULL)        delete[] Marker_Plotting;
+	if (Marker_Thrust != NULL)         delete[] Marker_Thrust;
   if (Marker_Analyze != NULL)        delete[] Marker_Analyze;
   if (Marker_WallFunctions != NULL)  delete[] Marker_WallFunctions;
   if (Marker_ZoneInterface != NULL)        delete[] Marker_ZoneInterface;
@@ -6207,13 +6221,12 @@ CConfig::~CConfig(void) {
   if (MG_CorrecSmooth != NULL) delete[] MG_CorrecSmooth;
   if (PlaneTag != NULL)        delete[] PlaneTag;
   if (CFL != NULL)             delete[] CFL;
-
+	
   /*--- String markers ---*/
   
   if (Marker_Euler != NULL )              delete[] Marker_Euler;
   if (Marker_FarField != NULL )           delete[] Marker_FarField;
   if (Marker_Custom != NULL )             delete[] Marker_Custom;
-  if (Marker_Thrust != NULL )             delete[] Marker_Thrust;
   if (Marker_SymWall != NULL )            delete[] Marker_SymWall;
   if (Marker_Pressure != NULL )           delete[] Marker_Pressure;
   if (Marker_PerBound != NULL )           delete[] Marker_PerBound;

@@ -1184,6 +1184,8 @@ inline void CConfig::SetMarker_All_Designing(unsigned short val_marker, unsigned
 
 inline void CConfig::SetMarker_All_Plotting(unsigned short val_marker, unsigned short val_plotting) { Marker_All_Plotting[val_marker] = val_plotting; }
 
+inline void CConfig::SetMarker_All_Thrust(unsigned short val_marker, unsigned short val_thrust) { Marker_All_Thrust[val_marker] = val_thrust; }
+
 inline void CConfig::SetMarker_All_Analyze(unsigned short val_marker, unsigned short val_analyze) { Marker_All_Analyze[val_marker] = val_analyze; }
 
 inline void CConfig::SetMarker_All_ZoneInterface(unsigned short val_marker, unsigned short val_fsiinterface) { Marker_All_ZoneInterface[val_marker] = val_fsiinterface; }
@@ -1213,6 +1215,8 @@ inline short CConfig::GetMarker_All_SendRecv(unsigned short val_marker) { return
 inline void CConfig::SetMarker_All_SendRecv(unsigned short val_marker, short val_index) { Marker_All_SendRecv[val_marker] = val_index; }
 
 inline unsigned short CConfig::GetMarker_All_Plotting(unsigned short val_marker) { return Marker_All_Plotting[val_marker]; }
+
+inline unsigned short CConfig::GetMarker_All_Thrust(unsigned short val_marker) { return Marker_All_Thrust[val_marker]; }
 
 inline unsigned short CConfig::GetMarker_All_Analyze(unsigned short val_marker) { return Marker_All_Analyze[val_marker]; }
 

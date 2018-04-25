@@ -4332,6 +4332,7 @@ void COutput::SetConvHistory_Header(ofstream *ConvHist_file, CConfig *config, un
   bool output_comboObj = (config->GetnObj() > 1);
   bool output_per_surface = config->GetWrt_Surface();
   bool turbo = config->GetBoolTurbomachinery();
+	bool thrust = (config->GetnMarker_Thrust() != 0);
   unsigned short direct_diff = config->GetDirectDiff();
 
   bool thermal = false; /* Flag for whether to print heat flux values */
@@ -4374,6 +4375,7 @@ void COutput::SetConvHistory_Header(ofstream *ConvHist_file, CConfig *config, un
   /*--- Header for the coefficients ---*/
   
   char flow_coeff[]= ",\"CL\",\"CD\",\"CSF\",\"CMx\",\"CMy\",\"CMz\",\"CFx\",\"CFy\",\"CFz\",\"CL/CD\",\"AoA\",\"Custom_ObjFunc\"";
+	char thrust_coeff[]= ",\"Thrust\"";
   char heat_coeff[]= ",\"HeatFlux_Total\",\"HeatFlux_Maximum\"";
   char equivalent_area_coeff[]= ",\"CEquivArea\",\"CNearFieldOF\"";
   char engine_coeff[]= ",\"AeroCDrag\",\"SolidCDrag\",\"Radial_Distortion\",\"Circumferential_Distortion\"";
@@ -4469,6 +4471,7 @@ void COutput::SetConvHistory_Header(ofstream *ConvHist_file, CConfig *config, un
     ConvHist_file[0] << begin;
     if (!turbo) ConvHist_file[0] << flow_coeff;
     if (turbo) ConvHist_file[0] << turbo_coeff;
+		if (thrust) ConvHist_file[0] << thrust_coeff;
     if (thermal && !turbo) ConvHist_file[0] << heat_coeff;
       if (equiv_area) ConvHist_file[0] << equivalent_area_coeff;
       if (engine || actuator_disk) ConvHist_file[0] << engine_coeff;
@@ -4618,6 +4621,14 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
     }
     
   }
+	
+	
+  /*--- Evaluate thrust. ---*/
+	
+	bool thrust = (config[val_iZone]->GetnMarker_Thrust() != 0);			
+	if (thrust) {
+		SetNozzleThrust(solver_container[val_iZone][FinestMesh][FLOW_SOL], geometry[val_iZone][FinestMesh], config[val_iZone]);
+	}
   
   /*--- Output using only the master node ---*/
   
@@ -4642,7 +4653,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
     /*--- WARNING: These buffers have hard-coded lengths. Note that you
      may have to adjust them to be larger if adding more entries. ---*/
     
-    char begin[1000], direct_coeff[1000], heat_coeff[1000], equivalent_area_coeff[1000], engine_coeff[1000], rotating_frame_coeff[1000], Cp_inverse_design[1000], Heat_inverse_design[1000], surface_coeff[1000], aeroelastic_coeff[1000], monitoring_coeff[10000],
+    char begin[1000], direct_coeff[1000], thrust_coeff[1000], heat_coeff[1000], equivalent_area_coeff[1000], engine_coeff[1000], rotating_frame_coeff[1000], Cp_inverse_design[1000], Heat_inverse_design[1000], surface_coeff[1000], aeroelastic_coeff[1000], monitoring_coeff[10000],
     adjoint_coeff[1000], flow_resid[1000], adj_flow_resid[1000], turb_resid[1000], trans_resid[1000],
     adj_turb_resid[1000], wave_coeff[1000],
     fem_coeff[1000], wave_resid[1000], heat_resid[1000], combo_obj[1000],
@@ -4804,7 +4815,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
     Surface_CMx        = new su2double[config[ZONE_0]->GetnMarker_Monitoring()];
     Surface_CMy        = new su2double[config[ZONE_0]->GetnMarker_Monitoring()];
     Surface_CMz        = new su2double[config[ZONE_0]->GetnMarker_Monitoring()];
-    
+    		
     /*--- Write information from nodes ---*/
     
     switch (config[val_iZone]->GetKind_Solver()) {
@@ -4828,7 +4839,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
         Total_ComboObj = solver_container[val_iZone][FinestMesh][FLOW_SOL]->GetTotal_ComboObj();
         Total_AoA      = config[val_iZone]->GetAoA() - config[val_iZone]->GetAoA_Offset();
         Total_Custom_ObjFunc = solver_container[val_iZone][FinestMesh][FLOW_SOL]->GetTotal_Custom_ObjFunc();
-
+				
         if (direct_diff != NO_DERIVATIVE) {
           D_Total_CL             = SU2_TYPE::GetDerivative(Total_CL);
           D_Total_CD             = SU2_TYPE::GetDerivative(Total_CD);
@@ -4849,8 +4860,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
             D_Total_IDC      = SU2_TYPE::GetDerivative(Total_IDC);
           }
           
-        }
-        
+        }        
         
         if (thermal) {
           Total_Heat     = solver_container[val_iZone][FinestMesh][FLOW_SOL]->GetTotal_HeatFlux();
@@ -5127,6 +5137,8 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
             SPRINTF (direct_coeff, ", %14.8e, %14.8e, %14.8e, %14.8e, %14.8e, %14.8e, %14.8e, %14.8e, %14.8e, %14.8e, %14.8e, %14.8e",
                      Total_CL, Total_CD, Total_CSF, Total_CMx, Total_CMy, Total_CMz, Total_CFx, Total_CFy,
                      Total_CFz, Total_CEff, Total_AoA, Total_Custom_ObjFunc);
+						
+            if (thrust) SPRINTF (thrust_coeff, ", %14.8e",  solver_container[val_iZone][FinestMesh][FLOW_SOL]->GetThrust_Nozzle());										
             if (thermal) SPRINTF (heat_coeff, ", %14.8e, %14.8e",  Total_Heat, Total_MaxHeat);
             if (equiv_area) SPRINTF (equivalent_area_coeff, ", %14.8e, %14.8e", Total_CEquivArea, Total_CNearFieldOF);
             if (engine || actuator_disk) SPRINTF (engine_coeff, ", %14.8e, %14.8e, %14.8e, %14.8e", Total_AeroCD, Total_SolidCD, Total_IDR, Total_IDC);
@@ -5728,6 +5740,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
           if ((!DualTime_Iteration) && (output_files)) {
             if (!turbo) {
               ConvHist_file[0] << begin << direct_coeff;
+							if (thrust) ConvHist_file[0] << thrust_coeff;
               if (thermal) ConvHist_file[0] << heat_coeff;
               if (equiv_area) ConvHist_file[0] << equivalent_area_coeff;
               if (engine || actuator_disk) ConvHist_file[0] << engine_coeff;
@@ -8555,20 +8568,16 @@ void COutput::SetCp_InverseDesign(CSolver *solver_container, CGeometry *geometry
 
 void COutput::SetNozzleThrust(CSolver *solver_container, CGeometry *geometry, CConfig *config) {
 	
-  unsigned short iMarker, icommas, Boundary, iDim, flag, iNodes;
-  unsigned long iVertex, iPoint, (*Point2Vertex)[2], nPointLocal = 0, nPointGlobal = 0;
-  su2double XCoord, YCoord, ZCoord, Pressure, PressureCoeff = 0, Cp, CpTarget, *Normal = NULL, Area, PressDiff;
-  bool *PointInDomain;
-  string text_line, surfCp_filename;
-  ifstream Surface_file;
-  char buffer[50], cstr[200];
+  unsigned short iMarker, iDim, iNodes;
+  unsigned long iVertex, iPoint, nPointLocal = 0, nPointGlobal = 0;
+	
+  su2double Pressure, CpTarget, *Normal = NULL, Area;
 
 	int rank = MASTER_NODE;
-	#ifdef HAVE_MPI
-	  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	#endif
-	
-	
+#ifdef HAVE_MPI
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#endif
+		
 	int Dim = geometry->GetnDim();
 	
 	su2double RefMach, RefDensity, RefPressure, *Velocity_Inf, Gas_Constant, Mach2Vel, Mach_Motion, \
@@ -8593,8 +8602,7 @@ void COutput::SetNozzleThrust(CSolver *solver_container, CGeometry *geometry, CC
   for (iPoint = 0; iPoint < geometry->GetnPointDomain(); iPoint++) {
     Global2Local[geometry->node[iPoint]->GetGlobalIndex()] = iPoint;
   }
-
-
+	
   nPointLocal = geometry->GetnPoint();
 #ifdef HAVE_MPI
   SU2_MPI::Allreduce(&nPointLocal, &nPointGlobal, 1, MPI_UNSIGNED_LONG, MPI_SUM, MPI_COMM_WORLD);
@@ -8630,10 +8638,49 @@ void COutput::SetNozzleThrust(CSolver *solver_container, CGeometry *geometry, CC
 	int iElem;
 	CPrimalGrid* bnd = NULL;
 	
+	// Check total area
+	AreaTot = 0.0;
+	Thrust = 0.0;
+  for (iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++){
+    if (config->GetMarker_All_Thrust(iMarker) == YES) {
+      for (iVertex = 0; iVertex < geometry->nVertex[iMarker]; iVertex++) {
+        iPoint = geometry->vertex[iMarker][iVertex]->GetNode();
+        Normal = geometry->vertex[iMarker][iVertex]->GetNormal();
+        Area = 0.0;
+        for (iDim = 0; iDim < geometry->GetnDim(); iDim++) Area += Normal[iDim]*Normal[iDim];
+        Area = sqrt (Area);
+				AreaTot += Area;
+				
+				rho  = solver_container->node[iPoint]->GetDensity();
+				pres = solver_container->node[iPoint]->GetPressure();
+				
+				if ( iVertex < 5 ) {
+					cout << "Ver " << iVertex << " iPoint " << iPoint << " " << geometry->node[iPoint]->GetCoord(0) << " " << geometry->node[iPoint]->GetCoord(1) << " " << geometry->node[iPoint]->GetCoord(2);
+					cout << "  rho : " <<   rho << endl;
+				}
+				
+				su2double rhoU = solver_container->node[iPoint]->GetSolution(1);
+				
+				velMod = 0.0;
+				for (iDim = 0; iDim < geometry->GetnDim(); iDim++) {
+				  vel[iDim] = solver_container->node[iPoint]->GetVelocity(iDim);
+					velMod += vel[iDim]*vel[iDim];
+				}
+				velMod = sqrt(velMod);
+				
+				Thrust +=  Area*(rho*velMod*(velMod-RefVel2)+pres-RefPressure);
+				
+      }
+    }
+	}
+	
+	cout << "AREA TOT " << AreaTot << endl;
+	cout << "THRUST " << Thrust << endl;
+	exit(1);
+		
   for (iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++) {
-    Boundary   = config->GetMarker_All_KindBC(iMarker);
-
-    if ( Boundary == THRUST_BOUNDARY ) {
+		
+    if (config->GetMarker_All_Thrust(iMarker) == YES) {
 						
 			for (iElem = 0; iElem < geometry->GetnElem_Bound(iMarker); iElem++) {
 				bnd = geometry->bound[iMarker][iElem];
@@ -8674,13 +8721,11 @@ void COutput::SetNozzleThrust(CSolver *solver_container, CGeometry *geometry, CC
 					//cout << geometry->node[iPoint]->GetCoord(0) << " " << geometry->node[iPoint]->GetCoord(1) << " " << solver_container->node[iPoint]->GetSolution(0) << " " << solver_container->node[iPoint]->GetSolution(1) << " " << solver_container->node[iPoint]->GetSolution(2) << " " << pres << " " << Area << endl;
 					
 				}
-							
+				
 			}
 			
     }
   }
-
-
 
 #ifdef HAVE_MPI
 
@@ -8701,6 +8746,11 @@ void COutput::SetNozzleThrust(CSolver *solver_container, CGeometry *geometry, CC
 		Thrust *= PI_NUMBER * AreaTot;
 	}
 	
+	if ( rank == MASTER_NODE )
+		cout << "AREA = " << AreaTot << endl;
+	
+	
+	exit(1);
 	//if ( rank == MASTER_NODE )
 	//	cout << "THRUST = " << Thrust << endl;
 	
