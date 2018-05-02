@@ -100,8 +100,15 @@ unsigned short GetnDim(string val_mesh_filename, unsigned short val_format) {
   
   strcpy (cstr, val_mesh_filename.c_str());
   mesh_file.open(cstr, ios::in);
-  
+	
   switch (val_format) {
+	
+		case INRIA:
+		
+		//printf("HERE\n");
+		//exit(1);
+		break;
+	
     case SU2:
       
       /*--- Read SU2 mesh file ---*/

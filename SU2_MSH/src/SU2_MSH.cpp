@@ -201,8 +201,14 @@ int main(int argc, char *argv[]) {
 				grid_adaptation->GetFlowResidual(geometry_container[ZONE_0], config_container[ZONE_0]);
 				grid_adaptation->SetIndicator_Computable(geometry_container[ZONE_0], config_container[ZONE_0]);
 				break;
+			case AMG_ADJ:
+				grid_adaptation->GetAdjSolution(geometry_container[ZONE_0], config_container[ZONE_0]);
+				grid_adaptation->GetFlowSolution(geometry_container[ZONE_0], config_container[ZONE_0]);
+				grid_adaptation->GetFlowResidual(geometry_container[ZONE_0], config_container[ZONE_0]);
+				grid_adaptation->SetAMG_Outputs(geometry_container[ZONE_0], config_container[ZONE_0]);
+				break;
 			case REMAINING:
-				cout << "Adaptation method not implemented."<< endl;
+				cout << "Adaptation method not implemented. "  << endl;
 				cout << "Press any key to exit..." << endl;
 				cin.get();
 				exit(1);
@@ -211,54 +217,64 @@ int main(int argc, char *argv[]) {
 				cout << "The adaptation is not defined" << endl;
 		}
 		
-		/*--- Perform an homothetic adaptation of the grid ---*/
-    
-		CPhysicalGeometry *geo_adapt; geo_adapt = new CPhysicalGeometry;
 		
-		cout << "Homothetic grid adaptation" << endl;
-		if (geometry_container[ZONE_0]->GetnDim() == 2) grid_adaptation->SetHomothetic_Adaptation2D(geometry_container[ZONE_0], geo_adapt, config_container[ZONE_0]);
-		if (geometry_container[ZONE_0]->GetnDim() == 3) grid_adaptation->SetHomothetic_Adaptation3D(geometry_container[ZONE_0], geo_adapt, config_container[ZONE_0]);
-    
-		/*--- Smooth the numerical grid coordinates ---*/
-    
-		if (config_container[ZONE_0]->GetSmoothNumGrid()) {
-			cout << "Preprocessing for doing the implicit smoothing." << endl;
-			geo_adapt->SetPoint_Connectivity(); geo_adapt->SetElement_Connectivity();
-			geo_adapt->SetBoundVolume(); geo_adapt->Check_IntElem_Orientation(config_container[ZONE_0]); geo_adapt->Check_BoundElem_Orientation(config_container[ZONE_0]);
-			geo_adapt->SetEdges(); geo_adapt->SetVertex(config_container[ZONE_0]);
-			cout << "Implicit smoothing of the numerical grid coordinates." << endl;
-			geo_adapt->SetCoord_Smoothing(5, 1.5, config_container[ZONE_0]);
+		
+		if ( config_container[ZONE_0]->GetKind_Adaptation() == AMG_ADJ ) {
+			// ---
+			printf( "HERE AMG ADJ\n");
 		}
-		
-		/*--- Original and adapted grid ---*/
-    strcpy (file_name, "original_grid.dat");
-    geometry_container[ZONE_0]->SetTecPlot(file_name, true);
-    strcpy (file_name, "original_surface.dat");
-    geometry_container[ZONE_0]->SetBoundTecPlot(file_name, true, config_container[ZONE_0]);
-    
-		/*--- Write the adapted grid sensor ---*/
-    
-    strcpy (file_name, "adapted_grid.dat");
-    geo_adapt->SetTecPlot(file_name, true);
-    strcpy (file_name, "adapted_surface.dat");
-    geo_adapt->SetBoundTecPlot(file_name, true, config_container[ZONE_0]);
-		
-		/*--- Write the new adapted grid, including the modified boundaries surfaces ---*/
-    
-		geo_adapt->SetMeshFile(config_container[ZONE_0], config_container[ZONE_0]->GetMesh_Out_FileName());
-    
-    
-		/*--- Write the restart file ---*/
-    
-		if ((config_container[ZONE_0]->GetKind_Adaptation() != SMOOTHING) && (config_container[ZONE_0]->GetKind_Adaptation() != FULL) &&
-				(config_container[ZONE_0]->GetKind_Adaptation() != WAKE) &&
-				(config_container[ZONE_0]->GetKind_Adaptation() != SUPERSONIC_SHOCK))
-			grid_adaptation->SetRestart_FlowSolution(config_container[ZONE_0], geo_adapt, config_container[ZONE_0]->GetRestart_FlowFileName());
-		
-		if ((config_container[ZONE_0]->GetKind_Adaptation() == GRAD_FLOW_ADJ) || (config_container[ZONE_0]->GetKind_Adaptation() == GRAD_ADJOINT)
-				|| (config_container[ZONE_0]->GetKind_Adaptation() == FULL_ADJOINT) || (config_container[ZONE_0]->GetKind_Adaptation() == COMPUTABLE) ||
-				(config_container[ZONE_0]->GetKind_Adaptation() == REMAINING))
-			grid_adaptation->SetRestart_AdjSolution(config_container[ZONE_0], geo_adapt, config_container[ZONE_0]->GetRestart_AdjFileName());
+		else {
+			/*--- Perform an homothetic adaptation of the grid ---*/
+
+			CPhysicalGeometry *geo_adapt; geo_adapt = new CPhysicalGeometry;
+
+			cout << "Homothetic grid adaptation" << endl;
+			if (geometry_container[ZONE_0]->GetnDim() == 2) grid_adaptation->SetHomothetic_Adaptation2D(geometry_container[ZONE_0], geo_adapt, config_container[ZONE_0]);
+			if (geometry_container[ZONE_0]->GetnDim() == 3) grid_adaptation->SetHomothetic_Adaptation3D(geometry_container[ZONE_0], geo_adapt, config_container[ZONE_0]);
+
+			/*--- Smooth the numerical grid coordinates ---*/
+
+			if (config_container[ZONE_0]->GetSmoothNumGrid()) {
+				cout << "Preprocessing for doing the implicit smoothing." << endl;
+				geo_adapt->SetPoint_Connectivity(); geo_adapt->SetElement_Connectivity();
+				geo_adapt->SetBoundVolume(); geo_adapt->Check_IntElem_Orientation(config_container[ZONE_0]); geo_adapt->Check_BoundElem_Orientation(config_container[ZONE_0]);
+				geo_adapt->SetEdges(); geo_adapt->SetVertex(config_container[ZONE_0]);
+				cout << "Implicit smoothing of the numerical grid coordinates." << endl;
+				geo_adapt->SetCoord_Smoothing(5, 1.5, config_container[ZONE_0]);
+			}
+
+			/*--- Original and adapted grid ---*/
+	    strcpy (file_name, "original_grid.dat");
+	    geometry_container[ZONE_0]->SetTecPlot(file_name, true);
+	    strcpy (file_name, "original_surface.dat");
+	    geometry_container[ZONE_0]->SetBoundTecPlot(file_name, true, config_container[ZONE_0]);
+
+			/*--- Write the adapted grid sensor ---*/
+
+	    strcpy (file_name, "adapted_grid.dat");
+	    geo_adapt->SetTecPlot(file_name, true);
+	    strcpy (file_name, "adapted_surface.dat");
+	    geo_adapt->SetBoundTecPlot(file_name, true, config_container[ZONE_0]);
+
+			/*--- Write the new adapted grid, including the modified boundaries surfaces ---*/
+
+			geo_adapt->SetMeshFile(config_container[ZONE_0], config_container[ZONE_0]->GetMesh_Out_FileName());
+
+
+			/*--- Write the restart file ---*/
+
+			if ((config_container[ZONE_0]->GetKind_Adaptation() != SMOOTHING) && (config_container[ZONE_0]->GetKind_Adaptation() != FULL) &&
+					(config_container[ZONE_0]->GetKind_Adaptation() != WAKE) &&
+					(config_container[ZONE_0]->GetKind_Adaptation() != SUPERSONIC_SHOCK))
+				grid_adaptation->SetRestart_FlowSolution(config_container[ZONE_0], geo_adapt, config_container[ZONE_0]->GetRestart_FlowFileName());
+
+			if ((config_container[ZONE_0]->GetKind_Adaptation() == GRAD_FLOW_ADJ) || (config_container[ZONE_0]->GetKind_Adaptation() == GRAD_ADJOINT)
+					|| (config_container[ZONE_0]->GetKind_Adaptation() == FULL_ADJOINT) || (config_container[ZONE_0]->GetKind_Adaptation() == COMPUTABLE) ||
+					(config_container[ZONE_0]->GetKind_Adaptation() == REMAINING))
+				grid_adaptation->SetRestart_AdjSolution(config_container[ZONE_0], geo_adapt, config_container[ZONE_0]->GetRestart_AdjFileName());
+			
+		}
+
 		
 	}
 	else {

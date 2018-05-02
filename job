@@ -1,0 +1,172 @@
+8c8
+<  * \version 4.1.2 "Cardinal"
+---
+>  * \version 4.1.1 "Cardinal"
+68c68
+<  * \version 4.1.2 "Cardinal"
+---
+>  * \version 4.1.1 "Cardinal"
+225,240d224
+< 		/*!
+< 	 * \brief Parse the native SU2 restart solution file
+< 	 * \param[in] geometry - Geometrical definition of the problem.
+< 	 * \param[in] config - Definition of the particular problem.
+< 	 */
+< 	void Get_Inria_SolutionFlow(CGeometry *geometry, CConfig *config, string filename);  
+<   
+<   
+< 		/*!
+< 	 * \brief Parse the native SU2 restart solution file
+< 	 * \param[in] geometry - Geometrical definition of the problem.
+< 	 * \param[in] config - Definition of the particular problem.
+< 	 */
+< 	void Get_SU2_SolutionFlow(CGeometry *geometry, CConfig *config, string filename);
+< 
+< 
+1863a1848,1853
+> 	
+> 	/*!
+> 	 * \brief A virtual member.
+> 	 * \return Value of thrust.
+> 	 */
+> 	virtual su2double GetNozzleThrust(void);
+1900a1891,1897
+> 	/*!
+> 	 * \brief A virtual member.
+> 	 * \param[in] val_cequivarea - Value of the Equivalent Area coefficient.
+> 	 */
+> 	virtual void SetNozzleThrust(su2double val_nozzlethrust);
+> 
+> 
+2100,2101c2097,2098
+<   virtual su2double GetCSkinFriction(unsigned short val_marker, unsigned long val_vertex, unsigned short val_dim);
+<   
+---
+> 	virtual su2double GetCSkinFriction(unsigned short val_marker, unsigned long val_vertex);
+>     
+2847c2844
+<  * \version 4.1.2 "Cardinal"
+---
+>  * \version 4.1.1 "Cardinal"
+2901c2898
+<  * \version 4.1.2 "Cardinal"
+---
+>  * \version 4.1.1 "Cardinal"
+3010a3008
+> 	NozzleThrust,			/*!< \brief Nozzle thrust. */
+3033,3034c3031
+< 	unsigned long nMarker,				/*!< \brief Total number of markers using the grid information. */
+<   *nVertex;       /*!< \brief Store nVertex at each marker for deallocation */
+---
+> 	unsigned long nMarker;				/*!< \brief Total number of markers using the grid information. */
+3056d3052
+<   unsigned long AoA_Counter;
+3175c3171,3186
+<   
+---
+> 	
+> 		/*!
+> 	 * \brief Parse the native SU2 restart solution file
+> 	 * \param[in] geometry - Geometrical definition of the problem.
+> 	 * \param[in] config - Definition of the particular problem.
+> 	 */
+> 	void Get_Inria_SolutionFlow(CGeometry *geometry, CConfig *config, string filename);  
+> 	
+> 
+> 		/*!
+> 	 * \brief Parse the native SU2 restart solution file
+> 	 * \param[in] geometry - Geometrical definition of the problem.
+> 	 * \param[in] config - Definition of the particular problem.
+> 	 */
+>   void Get_SU2_SolutionFlow(CGeometry *geometry, CConfig *config, string filename);
+> 
+4221a4233,4238
+> 	
+> 	/*!
+> 	 * \brief Provide the Nozzle Thrust.
+> 	 * \return Value of Thrust.
+> 	 */
+> 	su2double GetNozzleThrust(void);
+4245a4263,4268
+> 	
+> 	/*!
+> 	 * \brief Set the value of the Equivalent Area coefficient.
+> 	 * \param[in] val_cequivarea - Value of the Equivalent Area coefficient.
+> 	 */
+> 	void SetNozzleThrust(su2double val_nozzlethrust);
+4640c4663
+<  * \version 4.1.2 "Cardinal"
+---
+>  * \version 4.1.1 "Cardinal"
+4673c4696
+<   ***CSkinFriction;	/*!< \brief Skin friction coefficient for each boundary and vertex. */
+---
+> 	**CSkinFriction;	/*!< \brief Skin friction coefficient for each boundary and vertex. */
+4849,4850c4872,4873
+<   su2double GetCSkinFriction(unsigned short val_marker, unsigned long val_vertex, unsigned short val_dim);
+<   
+---
+> 	su2double GetCSkinFriction(unsigned short val_marker, unsigned long val_vertex);
+>     
+4914c4937
+<  * \version 4.1.2 "Cardinal"
+---
+>  * \version 4.1.1 "Cardinal"
+5043c5066
+<  * \version 4.1.2 "Cardinal"
+---
+>  * \version 4.1.1 "Cardinal"
+5248c5271
+<  * \version 4.1.2 "Cardinal"
+---
+>  * \version 4.1.1 "Cardinal"
+5424c5447
+<  * \version 4.1.2 "Cardinal"
+---
+>  * \version 4.1.1 "Cardinal"
+5570c5593
+<  * \version 4.1.2 "Cardinal"
+---
+>  * \version 4.1.1 "Cardinal"
+6062c6085
+<  * \version 4.1.2 "Cardinal"
+---
+>  * \version 4.1.1 "Cardinal"
+6171c6194
+<  * \version 4.1.2 "Cardinal"
+---
+>  * \version 4.1.1 "Cardinal"
+6317c6340
+<  *  \version 4.1.2 "Cardinal"
+---
+>  *  \version 4.1.1 "Cardinal"
+6449c6472
+<  *  \version 4.1.2 "Cardinal"
+---
+>  *  \version 4.1.1 "Cardinal"
+6608c6631
+<  *  \version 4.1.2 "Cardinal"
+---
+>  *  \version 4.1.1 "Cardinal"
+6806c6829
+< 	virtual ~CFEM_ElasticitySolver(void);
+---
+> 	~CFEM_ElasticitySolver(void);
+7240c7263
+<  * \version 4.1.2 "Cardinal"
+---
+>  * \version 4.1.1 "Cardinal"
+7426c7449
+<  * \version 4.1.2 "Cardinal"
+---
+>  * \version 4.1.1 "Cardinal"
+7634c7657
+<  * \version 4.1.2 "Cardinal"
+---
+>  * \version 4.1.1 "Cardinal"
+7681,7685d7703
+<    * \brief Destructor of the class.
+<    */
+<   ~CDiscAdjSolver(void);
+< 
+<   /*!

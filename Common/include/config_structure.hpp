@@ -58,7 +58,26 @@ using namespace std;
  * \version 4.1.2 "Cardinal"
  */
 
+struct StrainItem{
+
+	vector<unsigned long> IndexCurr;
+	vector<double> p1;
+	vector<double> walldist;
+	vector<unsigned long> IndexBndy;
+	vector<double> strain_rate;
+	vector<double> mu_t;
+
+};
+
+struct TauItem{
+
+	vector<unsigned long> IndexCurr;
+	vector<double> TauTangent;
+
+};
+
 class CConfig {
+
 private:
 	unsigned short Kind_SU2; /*!< \brief Kind of SU2 software component.*/
   unsigned short Ref_NonDim; /*!< \brief Kind of non dimensionalization.*/
@@ -67,6 +86,7 @@ private:
   unsigned short iZone, nZone; /*!< \brief Number of zones in the mesh. */
 	su2double OrderMagResidual; /*!< \brief Order of magnitude reduction. */
 	su2double MinLogResidual; /*!< \brief Minimum value of the log residual. */
+	su2double MaxLogResidual; /*!< \brief Maximum value of the log residual. */
 	su2double OrderMagResidualFSI; /*!< \brief Order of magnitude reduction. */
 	su2double MinLogResidualFSI; /*!< \brief Minimum value of the log residual. */
 	su2double Res_FEM_UTOL; 		/*!< \brief UTOL criteria for structural FEM. */
@@ -89,6 +109,7 @@ private:
   EquivArea,				/*!< \brief Flag to know if the code is going to compute and plot the equivalent area. */
   InvDesign_Cp,				/*!< \brief Flag to know if the code is going to compute and plot the inverse design. */
   InvDesign_HeatFlux,				/*!< \brief Flag to know if the code is going to compute and plot the inverse design. */
+	NozzleThrust,				/*!< \brief Flag to know if the code is going to compute and plot the inverse design. */
   Grid_Movement,			/*!< \brief Flag to know if there is grid movement. */
   Wind_Gust,              /*!< \brief Flag to know if there is a wind gust. */
   Aeroelastic_Simulation, /*!< \brief Flag to know if there is an aeroelastic simulation. */
@@ -118,6 +139,11 @@ private:
 	unsigned short nStartUpIter;	/*!< \brief Start up iterations using the fine grid. */
   su2double FixAzimuthalLine; /*!< \brief Fix an azimuthal line due to misalignments of the nearfield. */
   su2double **DV_Value;		/*!< \brief Previous value of the design variable. */
+	
+	su2double      *BSplineCoefs;		   /*!< \brief  */
+	unsigned short  *BSplineCoefs_DV;	 /*!< \brief  */
+	unsigned short  nBSplineCoefs;	   /*!< \brief  */
+		
 	su2double LimiterCoeff;				/*!< \brief Limiter coefficient */
   unsigned long LimiterIter;	/*!< \brief Freeze the value of the limiter after a number of iterations */
 	su2double SharpEdgesCoeff;				/*!< \brief Coefficient to identify the limit of a sharp edge. */
@@ -148,8 +174,10 @@ private:
 	su2double Current_UnstTime,									/*!< \brief Global time of the unsteady simulation. */
 	Current_UnstTimeND;									/*!< \brief Global time of the unsteady simulation. */
 	unsigned short nMarker_Euler,	/*!< \brief Number of Euler wall markers. */
+	nMarker_WallTemp,     	/*!< \brief Number of wall temp markers. */
 	nMarker_FarField,				/*!< \brief Number of far-field markers. */
 	nMarker_Custom,
+	nMarker_Thrust,
 	nMarker_SymWall,				/*!< \brief Number of symmetry wall markers. */
   nMarker_Pressure,				/*!< \brief Number of pressure wall markers. */
 	nMarker_PerBound,				/*!< \brief Number of periodic boundary markers. */
@@ -184,8 +212,10 @@ private:
 									(note that using parallel computation this number can be different
 									from nMarker_All). */
 	string *Marker_Euler,			/*!< \brief Euler wall markers. */
-	*Marker_FarField,				/*!< \brief Far field markers. */
+	*Marker_WallTemp,  /*!< \brief temp wall markers. */
+	*Marker_FarField,				  /*!< \brief Far field markers. */
 	*Marker_Custom,
+	*Marker_Thrust,          /*!< \brief Thrust surface markers. */
 	*Marker_SymWall,				/*!< \brief Symmetry wall markers. */
   *Marker_Pressure,				/*!< \brief Pressure boundary markers. */
 	*Marker_PerBound,				/*!< \brief Periodic boundary markers. */
@@ -244,6 +274,8 @@ private:
   su2double *Exhaust_Temperature;    /*!< \brief Specified fan face mach for nacelle boundaries. */
   su2double *Outlet_Pressure;    /*!< \brief Specified back pressures (static) for outlet boundaries. */
 	su2double *Isothermal_Temperature; /*!< \brief Specified isothermal wall temperatures (static). */
+	su2double *Wall_Temp;    /*!< \brief Specified isothermal wall temperatures (static). */
+	su2double *Wall_Temp_Locations; /*!< \brief Specified isothermal wall temperatures (static). */
 	su2double *Heat_Flux;  /*!< \brief Specified wall heat fluxes. */
 	su2double *Displ_Value;    /*!< \brief Specified displacement for displacement boundaries. */
 	su2double *Load_Value;    /*!< \brief Specified force for load boundaries. */
@@ -447,6 +479,7 @@ private:
 	bool Wrt_Unsteady;  /*!< \brief Write unsteady data adding header and prefix. */
   bool Wrt_Dynamic;  		/*!< \brief Write dynamic data adding header and prefix. */
 	bool LowFidelitySim;  /*!< \brief Compute a low fidelity simulation. */
+	bool SaveDefFile;  /*!< \brief Save DEF file. */
 	bool Restart,	/*!< \brief Restart solution (for direct, adjoint, and linearized problems).*/
 	Restart_Flow;	/*!< \brief Restart flow solution for adjoint and linearized problems. */
 	unsigned short nMarker_Monitoring,	/*!< \brief Number of markers to monitor. */
@@ -487,6 +520,8 @@ private:
 	unsigned short Mesh_FileFormat;	/*!< \brief Mesh input format. */
 	unsigned short Output_FileFormat;	/*!< \brief Format of the output files. */
   bool CFL_Adapt;      /*!< \brief Adaptive CFL number. */
+	bool Local_CFL_Adapt; /*!< \brief Local adaptive CFL number. */
+	bool Local_Relax_Factor; /*!< \brief Local flow relaxation factor. */
 	su2double RefAreaCoeff,		/*!< \brief Reference area for coefficient computation. */
 	RefElemLength,				/*!< \brief Reference element length for computing the slope limiting epsilon. */
 	RefSharpEdges,				/*!< \brief Reference coefficient for detecting sharp edges. */
@@ -496,12 +531,15 @@ private:
   *RefOriginMoment_Y,      /*!< \brief Y Origin for moment computation. */
   *RefOriginMoment_Z,      /*!< \brief Z Origin for moment computation. */
   *CFL_AdaptParam,      /*!< \brief Information about the CFL ramp. */
+  *CFL_LocalAdaptParam,      /*!< \brief Information about the CFL ramp. */	
+	*Hard_Limiting_Param,      /*!< \brief Information about the hard limiting. */	
   *CFL,
 	DomainVolume;		/*!< \brief Volume of the computational grid. */
   unsigned short nRefOriginMoment_X,    /*!< \brief Number of X-coordinate moment computation origins. */
 	nRefOriginMoment_Y,           /*!< \brief Number of Y-coordinate moment computation origins. */
 	nRefOriginMoment_Z;           /*!< \brief Number of Z-coordinate moment computation origins. */
 	string Mesh_FileName,			/*!< \brief Mesh input file. */
+  Thrust_FileName,			/*!< \brief Mesh input file. */
 	Mesh_Out_FileName,				/*!< \brief Mesh output file. */
 	Solution_FlowFileName,			/*!< \brief Flow solution input file. */
 	Solution_LinFileName,			/*!< \brief Linearized flow solution input file. */
@@ -538,6 +576,8 @@ private:
   Wrt_Limiters,              /*!< \brief Write residuals to solution file */
 	Wrt_SharpEdges,              /*!< \brief Write residuals to solution file */
   Wrt_Halo,                   /*!< \brief Write rind layers in solution files */
+	Wrt_InriaMesh,              /*!< \brief Write mesh in the Inria format */
+	Mesh_Decomposition,					/*!< \brief Perform hybrid mesh decomposition */
   Plot_Section_Forces,       /*!< \brief Write sectional forces for specified markers. */
 	Wrt_1D_Output;                /*!< \brief Write average stagnation pressure specified markers. */
   unsigned short Console_Output_Verb;  /*!< \brief Level of verbosity for console output */
@@ -571,6 +611,7 @@ private:
 	NuFactor_FreeStream,  /*!< \brief Ratio of turbulent to laminar viscosity. */
   NuFactor_Engine,  /*!< \brief Ratio of turbulent to laminar viscosity at the engine. */
   Pressure_FreeStream,     /*!< \brief Total pressure of the fluid. */
+	SA_Production_Factor,
 	Temperature_FreeStream,  /*!< \brief Total temperature of the fluid.  */
   Temperature_ve_FreeStream,  /*!< \brief Total vibrational-electronic temperature of the fluid.  */
   *MassFrac_FreeStream, /*!< \brief Mixture mass fractions of the fluid. */
@@ -618,6 +659,7 @@ private:
   *Translation_Rate_X,           /*!< \brief Translational velocity of the mesh in the x-direction. */
   *Translation_Rate_Y,           /*!< \brief Translational velocity of the mesh in the y-direction. */
   *Translation_Rate_Z,           /*!< \brief Translational velocity of the mesh in the z-direction. */
+	*WallTemp,           				/*!< \brief Wall temperature definition. */
   *Rotation_Rate_X,           /*!< \brief Angular velocity of the mesh about the x-axis. */
   *Rotation_Rate_Y,           /*!< \brief Angular velocity of the mesh about the y-axis. */
   *Rotation_Rate_Z,           /*!< \brief Angular velocity of the mesh about the z-axis. */
@@ -661,6 +703,7 @@ private:
 	nPlunging_Ampl_Y,           /*!< \brief Number of Plunging amplitudes in the y-direction. */
 	nPlunging_Ampl_Z,           /*!< \brief Number of Plunging amplitudes in the z-direction. */
   nMoveMotion_Origin,         /*!< \brief Number of motion origins. */
+	nWallTemp,                   /*!< \brief Number of wall temperature def locations. */
   *MoveMotion_Origin;         /*!< \brief Keeps track if we should move moment origin. */
   vector<vector<vector<su2double> > > Aeroelastic_np1, /*!< \brief Aeroelastic solution at time level n+1. */
   Aeroelastic_n, /*!< \brief Aeroelastic solution at time level n. */
@@ -706,7 +749,7 @@ private:
   bool ParMETIS;      /*!< \brief Boolean for activating ParMETIS mode (while testing). */
   unsigned short DirectDiff; /*!< \brief Direct Differentation mode. */
   bool DiscreteAdjoint; /*!< \brief AD-based discrete adjoint mode. */
-
+  double *betaArr;		/*!< \brief Array for values of SA_Production_Factor >*/
   
   /*--- all_options is a map containing all of the options. This is used during config file parsing
   to track the options which have not been set (so the default values can be used). Without this map
@@ -992,6 +1035,8 @@ private:
 
 public:
 
+	StrainItem StrainFile;
+	TauItem TauFile;
 	vector<string> fields; /*!< \brief Tags for the different fields in a restart file. */
 
 	/*!
@@ -1198,12 +1243,37 @@ public:
    * \return Value of CFL adapation
    */
   su2double GetCFL_AdaptParam(unsigned short val_index);
+
+  /*!
+   * \brief Get the values of the CFL adapation.
+   * \return Value of CFL adapation
+   */
+  su2double GetHard_Limiting_Param(unsigned short val_index);
   
+
+  /*!
+   * \brief Get the values of the CFL adapation.
+   * \return Value of CFL adapation
+   */
+  su2double GetCFL_LocalAdaptParam(unsigned short val_index);
+
+	/*!
+   * \brief Get the values of the CFL adapation.
+   * \return Value of CFL adapation
+   */
+  bool GetLocal_CFL_Adapt(void);
+
   /*!
    * \brief Get the values of the CFL adapation.
    * \return Value of CFL adapation
    */
   bool GetCFL_Adapt(void);
+
+  /*!
+   * \brief Get the values of the CFL adapation.
+   * \return Value of CFL adapation
+   */
+  bool GetLocal_Relax_Factor(void);
   
   /*!
 	 * \brief Get the value of the limits for the sections.
@@ -1418,6 +1488,10 @@ public:
 	 */
 	su2double GetPressure_FreeStream(void);
 
+	su2double GetSA_Production_Factor(void);
+
+	double GetbetaArr(int index);
+
 	/*!
 	 * \brief Get the value of the non-dimensionalized freestream pressure.
 	 * \return Non-dimensionalized freestream pressure.
@@ -1429,6 +1503,9 @@ public:
 	 * \return Dimensionalized freestream velocity vector.
 	 */
 	su2double* GetVelocity_FreeStream(void);
+	
+	
+	
 
 	/*!
 	 * \brief Get the value of the non-dimensionalized freestream temperature.
@@ -1805,6 +1882,10 @@ public:
 	 * \return Value of the Froude number.
 	 */
 	void SetPressure_FreeStream(su2double val_pressure_freestream);
+	
+	void SetSA_Production_Factor(su2double val_SA_Production_Factor);
+
+	void SetbetaArr(double *val_betaArr);
 
   /*!
 	 * \brief Set the Froude number for free surface problems.
@@ -2066,6 +2147,14 @@ public:
 	 * \return Number of Runge-Kutta steps.
 	 */
 	unsigned short GetnRKStep(void);
+	
+	/*!
+	 * \brief Get the number of wall temp def locations
+	 * \return number of wall temp def locations
+	 */
+	unsigned short GetnWallTemp(void);
+	
+	unsigned short GetnBSplineCoefs(void);
 
 	/*!
 	 * \brief Get the total number of boundary markers.
@@ -2084,6 +2173,8 @@ public:
 	 * \return Total number of boundary markers.
 	 */
 	unsigned short GetnMarker_EngineInflow(void);
+	
+	unsigned short GetnMarker_WallTemp(void);
   
   /*!
    * \brief Get the total number of boundary markers.
@@ -2273,6 +2364,12 @@ public:
 	 * \return 	<code>TRUE</code> means that a low fidelity simulation will be performed.
 	 */
 	bool GetLowFidelitySim(void);
+	
+	/*!
+	 * \brief Get information about performing a low fidelity simulation.
+	 * \return 	<code>TRUE</code> means that a low fidelity simulation will be performed.
+	 */
+	bool GetSaveDefFile(void);
 
 	/*!
 	 * \brief Get information about writing a volume solution file.
@@ -2315,6 +2412,18 @@ public:
 	 * \return <code>TRUE</code> means that residuals will be written to the solution file.
 	 */
 	bool GetWrt_SharpEdges(void);
+	
+	/*!
+	 * \brief Get information about writing residuals to volume solution file.
+	 * \return <code>TRUE</code> means that an Inria mesh will be written.
+	 */
+	bool GetWrt_InriaMesh(void);
+	
+	/*!
+	 * \brief Get information about performing a hybrid mesh decomposition.
+	 * \return <code>TRUE</code> means that mesh elements will be decomposed into simplicial ones (tet and tri).
+	 */
+	bool GetMesh_Decomposition(void);
 
   /*!
 	 * \brief Get information about writing rind layers to the solution files.
@@ -2340,6 +2449,9 @@ public:
 	 * \return Alpha coefficient for the Runge-Kutta integration scheme.
 	 */
 	su2double Get_Alpha_RKStep(unsigned short val_step);
+	
+	
+	su2double Get_WallTemp_Value(unsigned short val);
 
 	/*!
 	 * \brief Get the index of the surface defined in the geometry file.
@@ -2808,7 +2920,7 @@ public:
 	 * \return relaxation coefficient of the linear solver for the implicit formulation.
 	 */
 	su2double GetRelaxation_Factor_Flow(void);
-  
+
   /*!
    * \brief Get the relaxation coefficient of the linear solver for the implicit formulation.
    * \return relaxation coefficient of the linear solver for the implicit formulation.
@@ -3720,12 +3832,24 @@ public:
 	 * \return <code>TRUE</code> or <code>FALSE</code>  depending if we are computing the equivalent area.
 	 */
 	bool GetInvDesign_HeatFlux(void);
+	
+	/*!
+	 * \brief Information about computing and plotting the nozzle thrust.
+	 * \return <code>TRUE</code> or <code>FALSE</code>  depending if we are computing the equivalent area.
+	 */
+	bool GetNozzleThrust(void);
 
 	/*!
 	 * \brief Get name of the input grid.
 	 * \return File name of the input grid.
 	 */
 	string GetMesh_FileName(void);
+	
+	/*!
+	 * \brief Get name of the output thrust file.
+	 * \return File name of the output thrust file.
+	 */
+	string GetThrust_FileName(void);
 
 	/*!
 	 * \brief Get name of the output grid, this parameter is important for grid
@@ -4010,6 +4134,9 @@ public:
 	 * \return Design variable step.
 	 */
   su2double GetDV_Value(unsigned short val_dv, unsigned short val_val = 0);
+
+  su2double GetBSplineCoefs_Value(unsigned short val);
+  unsigned short GetBSplineCoefs_DV_Value(unsigned short val);
 
   /*!
    * \brief Set the value of the design variable step, we use this value in design problems.
@@ -4448,6 +4575,13 @@ public:
 	 * \return Value of the minimum residual value (log10 scale).
 	 */
 	su2double GetMinLogResidual(void);
+
+	/*!
+	 * \brief Value of the maximum residual value (log10 scale).
+	 * \return Value of the maximum residual value (log10 scale).
+	 */
+	su2double GetMaxLogResidual(void);
+
 
 	/*!
 	 * \brief Value of the order of magnitude reduction of the residual for FSI applications.

@@ -30,6 +30,7 @@
  * License along with SU2. If not, see <http://www.gnu.org/licenses/>.
  */
 
+
 #pragma once
 
 #include "../../Common/include/mpi_structure.hpp"
@@ -178,6 +179,19 @@ public:
 	void SetForceSections(CSolver *solver_container, CGeometry *geometry, CConfig *config,
                          unsigned long iExtIter);
   
+
+  /*!
+	 * \brief Writes forces at different sections.
+	 * \param[in] solver_container - Container vector with all the solutions.
+	 * \param[in] geometry - Geometrical definition of the problem.
+	 * \param[in] config - Definition of the particular problem.
+	 * \param[in] iExtIter - Current external (time) iteration.
+	 */
+
+	void SetNozzleThrust(CSolver *solver_container, CGeometry *geometry, CConfig *config);
+	
+
+
   /*!
 	 * \brief Writes one dimensional output.
 	 * \param[in] solver_container - Container vector with all the solutions.
@@ -267,12 +281,41 @@ public:
 	void MergeBaselineSolution(CConfig *config, CGeometry *geometry, CSolver *solver, unsigned short val_iZone);
   
   /*!
+	 * \brief Write a native Inria restart file.
+	 * \param[in] config - Definition of the particular problem.
+	 * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] val_iZone - iZone index.
+	 */
+	void SetInriaRestart(CConfig *config, CGeometry *geometry, CSolver **solver, unsigned short val_iZone);
+	
+	/*!
+	 * \brief Write an Inria mesh.
+	 * \param[in] config - Definition of the particular problem.
+	 * \param[in] geometry - Geometrical definition of the problem.
+	 */
+	void SetInriaMesh(CConfig *config, CGeometry *geometry);
+	 
+	/*!
+	 * \brief Write a native Inria restart file.
+	 * \param[in] config - Definition of the particular problem.
+	 * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] val_iZone - iZone index.
+	 */
+	void WriteInriaOutputs(CConfig *config, CGeometry *geometry, CSolver **solver, unsigned short val_iZone);
+
+
+  /*!
 	 * \brief Write a native SU2 restart file.
 	 * \param[in] config - Definition of the particular problem.
 	 * \param[in] geometry - Geometrical definition of the problem.
    * \param[in] val_iZone - iZone index.
 	 */
 	void SetRestart(CConfig *config, CGeometry *geometry, CSolver **solver, unsigned short val_iZone);
+	
+	
+	void WriteAdjointSolution(CConfig *config, CGeometry *geometry, CSolver **solver, unsigned short val_iZone);
+	
+	void SetWallDistance(CConfig *config, CGeometry *geometry, CSolver **solver, unsigned short val_iZone);
 
   /*!
 	 * \brief Write the x, y, & z coordinates to a CGNS output file.
@@ -496,5 +539,18 @@ public:
    * \param[in] val_nZone - iZone index.
    */
   void SetCFL_Number(CSolver ****solver_container, CConfig **config, unsigned short val_iZone);
+
+  /*!
+   * \brief Write the history file and the convergence on the screen for serial computations.
+   * \param[in] ConvHist_file - Pointer to the convergence history file (which is defined in the main subroutine).
+   * \param[in] geometry - Geometrical definition of the problem.
+   * \param[in] solver_container - Container vector with all the solutions.
+   * \param[in] config - Definition of the particular problem.
+   * \param[in] integration - Generic subroutines for space integration, time integration, and monitoring.
+   * \param[in] iExtIter - Current external (time) iteration.
+   * \param[in] timeused - Current number of clock tick in the computation (related with total time).
+   * \param[in] val_nZone - iZone index.
+   */
+  void SetLocalCFL_Number(CSolver ****solver_container, CConfig **config,  CGeometry ***geometry, unsigned short val_iZone);
   
 };

@@ -288,6 +288,11 @@ public:
 	 */		
 	void SetIndicator_FlowAdj(CGeometry *geometry, CConfig *config);
 	
+	void AMG_WriteFw(CGeometry *geometry, CConfig *config);
+	void AMG_WriteWgtFw(CGeometry *geometry, CConfig *config);
+	void SetAMG_Outputs(CGeometry *geometry, CConfig *config);
+	void SetAMG_Fw(CConfig *config, CPhysicalGeometry *geo_adapt, string mesh_flowfilename);
+	
 	/*! 
 	 * \brief Read the flow solution from the restart file.
 	 * \param[in] geometry - Geometrical definition of the problem.

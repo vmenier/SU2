@@ -192,7 +192,7 @@ void CMeanFlowIteration::Iterate(COutput *output,
     for (IntIter = 1; IntIter < config_container[val_iZone]->GetUnst_nIntIter(); IntIter++) {
       
       /*--- Write the convergence history (only screen output) ---*/
-      
+
       output->SetConvHistory_Body(NULL, geometry_container, solver_container, config_container, integration_container, true, 0.0, val_iZone);
       
       /*--- Set the value of the internal iteration ---*/
@@ -1380,6 +1380,8 @@ void CDiscAdjMeanFlowIteration::Preprocess(COutput *output,
   
   unsigned long IntIter = 0; config_container[ZONE_0]->SetIntIter(IntIter);
   unsigned short ExtIter = config_container[val_iZone]->GetExtIter();
+
+
   
   int rank = MASTER_NODE;
 #ifdef HAVE_MPI
@@ -1398,9 +1400,11 @@ void CDiscAdjMeanFlowIteration::Preprocess(COutput *output,
     
     /*--- Record one mean flow iteration with flow variables as input ---*/
     
+
     SetRecording(output, integration_container, geometry_container, solver_container, numerics_container,
                  config_container, surface_movement, grid_movement, FFDBox, val_iZone, FLOW_VARIABLES);
     
+
     /*--- Print residuals in the first iteration ---*/
     
     if (rank == MASTER_NODE && ExtIter == 0){
@@ -1539,10 +1543,21 @@ void CDiscAdjMeanFlowIteration::SetRecording(COutput *output,
   
   RegisterInput(solver_container, geometry_container, config_container, val_iZone, kind_recording);
   
+
+	  int rank;
+	#ifdef HAVE_MPI
+	  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	#else
+	  rank = MASTER_NODE;
+	#endif
+
+
   /*--- Compute coupling or update the geometry ---*/
 
   SetDependencies(solver_container, geometry_container, config_container, val_iZone, kind_recording);
   
+
+
   /*--- Run the direct iteration ---*/
   
   meanflow_iteration->Iterate(output,integration_container,geometry_container,solver_container,numerics_container,
@@ -1556,7 +1571,19 @@ void CDiscAdjMeanFlowIteration::SetRecording(COutput *output,
       config_container[val_iZone]->GetKind_ObjFunc()==MASS_FLOW_RATE)
     output->OneDimensionalOutput(solver_container[val_iZone][MESH_0][FLOW_SOL],
                                  geometry_container[val_iZone][MESH_0], config_container[val_iZone]);
-  
+
+
+	/*--- Compute thrust ---*/
+  if ( config_container[val_iZone]->GetKind_ObjFunc() == THRUST_NOZZLE ) {
+	
+		//printf("COMPUTE NOZZLE THRUST\n");
+		output->SetNozzleThrust(solver_container[val_iZone][MESH_0][FLOW_SOL],
+                                 geometry_container[val_iZone][MESH_0], config_container[val_iZone]);
+	}
+															
+
+
+
   RegisterOutput(solver_container, geometry_container, config_container, val_iZone);
   
   /*--- Stop the recording ---*/
@@ -1572,6 +1599,14 @@ void CDiscAdjMeanFlowIteration::SetRecording(COutput *output,
 void CDiscAdjMeanFlowIteration::RegisterInput(CSolver ****solver_container, CGeometry ***geometry_container, CConfig **config_container, unsigned short iZone, unsigned short kind_recording){
   
   
+	  int rank;
+	#ifdef HAVE_MPI
+	  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	#else
+	  rank = MASTER_NODE;
+	#endif
+
+
   if (kind_recording == FLOW_VARIABLES || kind_recording == ALL_VARIABLES){
     
     /*--- Register flow and turbulent variables as input ---*/
@@ -1580,6 +1615,7 @@ void CDiscAdjMeanFlowIteration::RegisterInput(CSolver ****solver_container, CGeo
     
     solver_container[iZone][MESH_0][ADJFLOW_SOL]->RegisterVariables(geometry_container[iZone][MESH_0], config_container[iZone]);
     
+
     if (turbulent){
       solver_container[iZone][MESH_0][ADJTURB_SOL]->RegisterSolution(geometry_container[iZone][MESH_0], config_container[iZone]);
     }
@@ -1591,6 +1627,7 @@ void CDiscAdjMeanFlowIteration::RegisterInput(CSolver ****solver_container, CGeo
     geometry_container[iZone][MESH_0]->RegisterCoordinates(config_container[iZone]);
     
   }
+
 
 }
 

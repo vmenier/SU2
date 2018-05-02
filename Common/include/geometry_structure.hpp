@@ -45,6 +45,11 @@ extern "C" {
 #ifdef HAVE_CGNS
   #include "cgnslib.h"
 #endif
+#ifdef HAVE_INRIA
+extern "C" {
+#include "libmesh6.h"
+}
+#endif
 #include <string>
 #include <fstream>
 #include <sstream>
@@ -629,7 +634,14 @@ public:
                                       vector<su2double> &Xcoord_Airfoil, vector<su2double> &Ycoord_Airfoil,
                                       vector<su2double> &Zcoord_Airfoil, vector<su2double> &Variable_Airfoil,
                                       bool original_surface, CConfig *config);
-  
+
+	 /*!
+	 * \brief A virtual member.
+	 * \param[in] config - Definition of the particular problem.
+	 */
+	virtual su2double ComputeThrustNozzle(su2double XCoord, su2double *Sol, unsigned long nVar, CConfig *config) ;
+
+
   /*!
 	 * \brief A virtual member.
 	 * \param[in] config - Definition of the particular problem.
@@ -1007,6 +1019,17 @@ public:
    * \param[in] val_nZone - Total number of domains in the grid file.
    */
   void Read_CGNS_Format_Parallel(CConfig *config, string val_mesh_filename, unsigned short val_iZone, unsigned short val_nZone);
+
+	/*!
+	   * \brief Reads the geometry of the grid and adjust the boundary
+	   *        conditions with the configuration file in parallel (for parmetis).
+	   * \param[in] config - Definition of the particular problem.
+	   * \param[in] val_mesh_filename - Name of the file with the grid information.
+	   * \param[in] val_format - Format of the file with the grid information.
+	   * \param[in] val_iZone - Domain to be read from the grid file.
+	   * \param[in] val_nZone - Total number of domains in the grid file.
+	   */
+	  void Read_Inria_Format_Parallel(CConfig *config, string val_mesh_filename, unsigned short val_iZone, unsigned short val_nZone);
 
 	/*! 
 	 * \brief Find repeated nodes between two elements to identify the common face.

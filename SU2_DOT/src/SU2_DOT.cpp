@@ -499,7 +499,11 @@ void SetProjection_AD(CGeometry *geometry, CConfig *config, CSurfaceMovement *su
 
       AD::RegisterInput(DV_Value);
 
+
+
       config->SetDV_Value(iDV, iDV_Value, DV_Value);
+
+			//printf("DV %ld iDV_Value %ld : %lf\n",  SU2_TYPE::Int(iDV), SU2_TYPE::Int(iDV_Value),  SU2_TYPE::GetValue(DV_Value) );
     }
   }
   

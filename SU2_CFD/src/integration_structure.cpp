@@ -191,6 +191,9 @@ void CIntegration::Space_Integration(CGeometry *geometry,
       case CUSTOM_BOUNDARY:
         solver_container[MainSolver]->BC_Custom(geometry, solver_container, numerics[CONV_BOUND_TERM], config, iMarker);
         break;
+	    case WALL_TEMP:
+	      solver_container[MainSolver]->BC_Isothermal_Wall_Distrib(geometry, solver_container, numerics[CONV_BOUND_TERM], numerics[VISC_BOUND_TERM], config, iMarker);
+	      break;
     }
   
 }
@@ -500,6 +503,14 @@ void CIntegration::Convergence_Monitoring(CGeometry *geometry, CConfig *config, 
       if (((fabs(InitResidual - monitor) >= config->GetOrderMagResidual()) && (monitor < InitResidual))  ||
           (monitor <= config->GetMinLogResidual())) { Convergence = true; Convergence_FullMG = true; }
       else { Convergence = false; Convergence_FullMG = false; }
+
+			if (monitor > config->GetMaxLogResidual()) {
+				if ( rank == MASTER_NODE ) {
+					cout << "\n !!! Error: Residual has reached the maximum value set in the .cfg file. Exit.\n" << endl;
+					cout << "           Res = " << monitor << ", ResMax = " << config->GetMaxLogResidual() << endl;
+				}
+				Convergence = true; Convergence_FullMG = true; 
+			}
       
     }
     
@@ -546,10 +557,22 @@ void CIntegration::Convergence_Monitoring(CGeometry *geometry, CConfig *config, 
 #endif
     
     /*--- Stop the simulation in case a nan appears, do not save the solution ---*/
-    
+
+//    if (monitor > config->GetMaxLogResidual()) {
+//      if (rank == MASTER_NODE){
+//      cout << "\n !!! Error: Residual has reached the maximum value set in the .cfg file. Exit.\n" << endl;
+//			cout << "           Res = " << monitor << endl;}
+//#ifndef HAVE_MPI
+//      exit(EXIT_DIVERGENCE);
+//#else
+//      MPI_Abort(MPI_COMM_WORLD,1);
+//#endif
+//    }
+
+
     if (monitor != monitor) {
       if (rank == MASTER_NODE)
-      cout << "\n !!! Error: SU2 has diverged. Now exiting... !!! \n" << endl;
+      cout << "\n !!! Error: SU2 has diverged. Now exiting... !!! 1\n" << endl;
 #ifndef HAVE_MPI
       exit(EXIT_DIVERGENCE);
 #else
