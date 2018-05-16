@@ -44,6 +44,10 @@ if BUILD_TECIO
   SUBDIRS += tecio
 endif
 
+if BUILD_INRIA
+  SUBDIRS += inria
+endif
+
 if BUILD_METIS
   SUBDIRS += metis
 if BUILD_PARMETIS

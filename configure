@@ -635,6 +635,8 @@ BUILD_SOL_FALSE
 BUILD_SOL_TRUE
 BUILD_DEF_FALSE
 BUILD_DEF_TRUE
+BUILD_AMG_FALSE
+BUILD_AMG_TRUE
 BUILD_MSH_FALSE
 BUILD_MSH_TRUE
 BUILD_DOT_FALSE
@@ -692,6 +694,8 @@ BUILD_METIS_TRUE
 SU2_METIS_CPPFLAGS
 METIS_LIB
 METIS_INCLUDE
+BUILD_INRIA_FALSE
+BUILD_INRIA_TRUE
 BUILD_TECIO_FALSE
 BUILD_TECIO_TRUE
 TECIO_CPPFLAGS
@@ -835,6 +839,7 @@ with_LAPACK_include
 enable_CFD
 enable_DOT
 enable_MSH
+enable_AMG
 enable_DEF
 enable_SOL
 enable_GEO
@@ -1498,6 +1503,7 @@ Optional Features:
   --disable-CFD           build the SU2_CFD executable (default = yes)
   --disable-DOT           build the SU2_DOT executable (default = yes)
   --disable-MSH           build the SU2_MSH executable (default = yes)
+  --disable-AMG           build the SU2_AMG executable (default = yes)
   --disable-DEF           build the SU2_DEF executable (default = yes)
   --disable-SOL           build the SU2_SOL executable (default = yes)
   --disable-GEO           build the SU2_GEO executable (default = yes)
@@ -5981,6 +5987,13 @@ else
   build_MSH="yes"
 fi
 
+# Check whether --enable-AMG was given.
+if test "${enable_AMG+set}" = set; then :
+  enableval=$enable_AMG; build_AMG=$enableval
+else
+  build_AMG="yes"
+fi
+
 # Check whether --enable-DEF was given.
 if test "${enable_DEF+set}" = set; then :
   enableval=$enable_DEF; build_DEF=$enableval
@@ -6164,6 +6177,26 @@ else
 fi
 
 ac_config_files="$ac_config_files externals/tecio/Makefile"
+
+
+
+# Inria
+CONFIGURE_INRIA
+if (test $enableinria = yes); then
+  su2_externals_INCLUDES="-DHAVE_INRIA $INRIA_INCLUDE $su2_externals_INCLUDES"
+  su2_externals_LIBS="$INRIA_LIB $su2_externals_LIBS"
+else
+  su2_externals_INCLUDES="$su2_externals_INCLUDES"
+fi
+ if test x$enableinria = xyes; then
+  BUILD_INRIA_TRUE=
+  BUILD_INRIA_FALSE='#'
+else
+  BUILD_INRIA_TRUE='#'
+  BUILD_INRIA_FALSE=
+fi
+
+ac_config_files="$ac_config_files externals/inria/Makefile"
 
 
 # Metis
@@ -7166,6 +7199,7 @@ if test $build_NORMAL == "no"
 then
   build_DOT=no
   build_MSH=no
+	build_AMG=no
   build_DEF=no
   build_SOL=no
   build_GEO=no
@@ -7201,6 +7235,14 @@ fi
 else
   BUILD_MSH_TRUE='#'
   BUILD_MSH_FALSE=
+fi
+
+ if test $build_AMG != "no"; then
+  BUILD_AMG_TRUE=
+  BUILD_AMG_FALSE='#'
+else
+  BUILD_AMG_TRUE='#'
+  BUILD_AMG_FALSE=
 fi
 
  if test $build_DEF != "no"; then
@@ -7246,7 +7288,7 @@ fi
 
 ###########################
 
-ac_config_files="$ac_config_files Makefile externals/Makefile Common/lib/Makefile SU2_CFD/obj/Makefile SU2_DOT/obj/Makefile SU2_MSH/obj/Makefile SU2_DEF/obj/Makefile SU2_SOL/obj/Makefile SU2_GEO/obj/Makefile SU2_PY/Makefile SU2_PY/pySU2/Makefile"
+ac_config_files="$ac_config_files Makefile externals/Makefile Common/lib/Makefile SU2_CFD/obj/Makefile SU2_DOT/obj/Makefile SU2_MSH/obj/Makefile SU2_AMG/obj/Makefile SU2_DEF/obj/Makefile SU2_SOL/obj/Makefile SU2_GEO/obj/Makefile SU2_PY/Makefile SU2_PY/pySU2/Makefile"
 
 cat >confcache <<\_ACEOF
 # This file is a shell script that caches the results of configure
@@ -7429,6 +7471,10 @@ if test -z "${BUILD_TECIO_TRUE}" && test -z "${BUILD_TECIO_FALSE}"; then
   as_fn_error $? "conditional \"BUILD_TECIO\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
+if test -z "${BUILD_INRIA_TRUE}" && test -z "${BUILD_INRIA_FALSE}"; then
+  as_fn_error $? "conditional \"BUILD_INRIA\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
 if test -z "${BUILD_METIS_TRUE}" && test -z "${BUILD_METIS_FALSE}"; then
   as_fn_error $? "conditional \"BUILD_METIS\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
@@ -7511,6 +7557,10 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${BUILD_MSH_TRUE}" && test -z "${BUILD_MSH_FALSE}"; then
   as_fn_error $? "conditional \"BUILD_MSH\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${BUILD_AMG_TRUE}" && test -z "${BUILD_AMG_FALSE}"; then
+  as_fn_error $? "conditional \"BUILD_AMG\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${BUILD_DEF_TRUE}" && test -z "${BUILD_DEF_FALSE}"; then
@@ -8108,6 +8158,7 @@ do
   case $ac_config_target in
     "depfiles") CONFIG_COMMANDS="$CONFIG_COMMANDS depfiles" ;;
     "externals/tecio/Makefile") CONFIG_FILES="$CONFIG_FILES externals/tecio/Makefile" ;;
+    "externals/inria/Makefile") CONFIG_FILES="$CONFIG_FILES externals/inria/Makefile" ;;
     "externals/metis/Makefile") CONFIG_FILES="$CONFIG_FILES externals/metis/Makefile" ;;
     "externals/parmetis/Makefile") CONFIG_FILES="$CONFIG_FILES externals/parmetis/Makefile" ;;
     "externals/cgns/Makefile") CONFIG_FILES="$CONFIG_FILES externals/cgns/Makefile" ;;
@@ -8117,6 +8168,7 @@ do
     "SU2_CFD/obj/Makefile") CONFIG_FILES="$CONFIG_FILES SU2_CFD/obj/Makefile" ;;
     "SU2_DOT/obj/Makefile") CONFIG_FILES="$CONFIG_FILES SU2_DOT/obj/Makefile" ;;
     "SU2_MSH/obj/Makefile") CONFIG_FILES="$CONFIG_FILES SU2_MSH/obj/Makefile" ;;
+    "SU2_AMG/obj/Makefile") CONFIG_FILES="$CONFIG_FILES SU2_AMG/obj/Makefile" ;;
     "SU2_DEF/obj/Makefile") CONFIG_FILES="$CONFIG_FILES SU2_DEF/obj/Makefile" ;;
     "SU2_SOL/obj/Makefile") CONFIG_FILES="$CONFIG_FILES SU2_SOL/obj/Makefile" ;;
     "SU2_GEO/obj/Makefile") CONFIG_FILES="$CONFIG_FILES SU2_GEO/obj/Makefile" ;;
@@ -8760,6 +8812,7 @@ Build Configuration Summary:
     Build SU2_CFD:        $build_CFD
     Build SU2_DOT:        $build_DOT
     Build SU2_MSH:        $build_MSH
+    Build SU2_AMG:        $build_AMG
     Build SU2_DEF:        $build_DEF
     Build SU2_SOL:        $build_SOL
     Build SU2_GEO:        $build_GEO
@@ -8849,6 +8902,7 @@ Build Configuration Summary:
     Build SU2_CFD:        $build_CFD
     Build SU2_DOT:        $build_DOT
     Build SU2_MSH:        $build_MSH
+    Build SU2_AMG:        $build_AMG
     Build SU2_DEF:        $build_DEF
     Build SU2_SOL:        $build_SOL
     Build SU2_GEO:        $build_GEO

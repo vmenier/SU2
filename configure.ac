@@ -144,6 +144,9 @@ AC_ARG_ENABLE(DOT,
 AC_ARG_ENABLE(MSH,
    	AS_HELP_STRING([--disable-MSH], [build the SU2_MSH executable (default = yes)]),
 	[build_MSH=$enableval], [build_MSH="yes"])
+AC_ARG_ENABLE(AMG,
+   	AS_HELP_STRING([--disable-AMG], [build the SU2_AMG executable (default = yes)]),
+	[build_AMG=$enableval], [build_AMG="yes"])
 AC_ARG_ENABLE(DEF,
    	AS_HELP_STRING([--disable-DEF], [build the SU2_DEF executable (default = yes)]),
 	[build_DEF=$enableval], [build_DEF="yes"])
@@ -188,6 +191,18 @@ else
 fi
 AM_CONDITIONAL(BUILD_TECIO, test x$enabletecio = xyes)
 AC_CONFIG_FILES([externals/tecio/Makefile])
+
+
+# Inria
+CONFIGURE_INRIA
+if (test $enableinria = yes); then
+  su2_externals_INCLUDES="-DHAVE_INRIA $INRIA_INCLUDE $su2_externals_INCLUDES"
+  su2_externals_LIBS="$INRIA_LIB $su2_externals_LIBS"
+else
+  su2_externals_INCLUDES="$su2_externals_INCLUDES"
+fi
+AM_CONDITIONAL(BUILD_INRIA, test x$enableinria = xyes)
+AC_CONFIG_FILES([externals/inria/Makefile])
 
 # Metis
 CONFIGURE_METIS
@@ -517,6 +532,7 @@ if test $build_NORMAL == "no"
 then
   build_DOT=no
   build_MSH=no
+	build_AMG=no
   build_DEF=no
   build_SOL=no
   build_GEO=no
@@ -533,6 +549,7 @@ fi
 AM_CONDITIONAL([BUILD_CFD],[test $build_CFD != "no"])
 AM_CONDITIONAL([BUILD_DOT],[test $build_DOT != "no"])
 AM_CONDITIONAL([BUILD_MSH],[test $build_MSH != "no"])
+AM_CONDITIONAL([BUILD_AMG],[test $build_AMG != "no"])
 AM_CONDITIONAL([BUILD_DEF],[test $build_DEF != "no"])
 AM_CONDITIONAL([BUILD_SOL],[test $build_SOL != "no"])
 AM_CONDITIONAL([BUILD_GEO],[test $build_GEO != "no"])
@@ -547,6 +564,7 @@ AC_OUTPUT(Makefile \
 	SU2_CFD/obj/Makefile \
 	SU2_DOT/obj/Makefile \
 	SU2_MSH/obj/Makefile \
+	SU2_AMG/obj/Makefile \
 	SU2_DEF/obj/Makefile \
 	SU2_SOL/obj/Makefile \
 	SU2_GEO/obj/Makefile \
@@ -630,6 +648,7 @@ Build Configuration Summary:
     Build SU2_CFD:        $build_CFD
     Build SU2_DOT:        $build_DOT
     Build SU2_MSH:        $build_MSH
+    Build SU2_AMG:        $build_AMG
     Build SU2_DEF:        $build_DEF
     Build SU2_SOL:        $build_SOL
     Build SU2_GEO:        $build_GEO

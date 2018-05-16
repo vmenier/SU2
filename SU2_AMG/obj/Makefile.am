@@ -1,7 +1,7 @@
 ################################################################################
 #
 # \file Makefile.am
-# \brief Global makefile for the SU2 project
+# \brief Makefile for SU2_AMG
 # \author M. Colonno, T. Economon, F. Palacios
 # \version 6.0.1 "Falcon"
 #
@@ -38,45 +38,42 @@
 ################################################################################
 
 AUTOMAKE_OPTIONS = subdir-objects
-ACLOCAL_AMFLAGS = ${ACLOCAL_FLAGS} -I m4
+ACLOCAL_AMFLAGS = ${ACLOCAL_FLAGS}
 
-# build third-party optional dependencies first
-SUBDIRS = externals
+bin_PROGRAMS = ../bin/SU2_AMG
 
-SUBDIRS += Common/lib
+___bin_SU2_AMG_SOURCES = \
+  ../include/SU2_AMG.hpp \
+  ../src/SU2_AMG.cpp
 
-if BUILD_PY
-SUBDIRS += SU2_PY
-endif
+___bin_SU2_AMG_CXXFLAGS =
+___bin_SU2_AMG_LDADD = ../../Common/lib/libSU2.a
 
-if BUILD_CFD
-SUBDIRS +=SU2_CFD/obj
-endif
+# always link to built dependencies from ./externals
+___bin_SU2_AMG_CXXFLAGS += @su2_externals_INCLUDES@
+___bin_SU2_AMG_LDADD += @su2_externals_LIBS@
 
-if BUILD_DOT
-SUBDIRS +=SU2_DOT/obj
-endif
+# if BUILD_HDF5
+___bin_SU2_AMG_CXXFLAGS += @HDF5_CXX@
+___bin_SU2_AMG_LDADD += @HDF5_LD@
+# endif
 
-if BUILD_MSH
-SUBDIRS +=SU2_MSH/obj
-endif
+# if BUILD_SZIP
+___bin_SU2_AMG_CXXFLAGS += @SZIP_CXX@
+___bin_SU2_AMG_LDADD += @SZIP_LD@
+# endif
 
-if BUILD_AMG
-SUBDIRS +=SU2_AMG/obj
-endif
+# if BUILD_ZLIB
+___bin_SU2_AMG_CXXFLAGS += @ZLIB_CXX@
+___bin_SU2_AMG_LDADD += @ZLIB_LD@
+# endif
 
-if BUILD_DEF
-SUBDIRS +=SU2_DEF/obj
-endif
+# if BUILD_MUTATIONPP
+___bin_SU2_AMG_CXXFLAGS += @MUTATIONPP_CXX@
+___bin_SU2_AMG_LDADD += @MUTATIONPP_LD@
+# endif
 
-if BUILD_SOL
-SUBDIRS +=SU2_SOL/obj
-endif
-
-if BUILD_GEO
-SUBDIRS +=SU2_GEO/obj
-endif
-
-if BUILD_PY_WRAPPER
-SUBDIRS += SU2_PY/pySU2
-endif
+# if BUILD_JSONCPP
+___bin_SU2_AMG_CXXFLAGS += @JSONCPP_CXX@
+___bin_SU2_AMG_LDADD += @JSONCPP_LD@
+# endif
