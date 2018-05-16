@@ -2010,6 +2010,32 @@ void CConfig::SetConfig_Options(unsigned short val_iZone, unsigned short val_nZo
   /* DESCRIPTION: Multipoint design freestream pressure */
   addPythonOption("MULTIPOINT_FREESTREAM_PRESSURE");
   
+	/* Mesh adaptation options */
+	
+	/* DESCRIPTION: A mesh adaptation option */
+	addPythonOption("ADAP_SIZES");
+	
+	/* DESCRIPTION: A mesh adaptation option */
+	addPythonOption("ADAP_SUBITE");
+	
+	/* DESCRIPTION: A mesh adaptation option */
+	addPythonOption("ADAP_EXT_ITER");
+	
+	/* DESCRIPTION: A mesh adaptation option */
+	addPythonOption("ADAP_RESIDUAL_REDUCTION");
+	
+	/* DESCRIPTION: A mesh adaptation option */
+	addPythonOption("ADAP_SENSOR");
+	
+	/* DESCRIPTION: A mesh adaptation option */
+	addPythonOption("ADAP_HMAX");
+	
+	/* DESCRIPTION: A mesh adaptation option */
+	addPythonOption("ADAP_HMIN");
+	
+	/* DESCRIPTION: A mesh adaptation option */
+	addPythonOption("ADAP_HGRAD");
+	
   /* END_CONFIG_OPTIONS */
 
 }
