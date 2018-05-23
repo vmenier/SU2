@@ -281,6 +281,12 @@ public:
 	 */		
 	void SetIndicator_Flow(CGeometry *geometry, CConfig *config, unsigned short strength);
 	
+	
+	void AMG_WriteFw(CGeometry *geometry, CConfig *config);
+	void AMG_WriteWgtFw(CGeometry *geometry, CConfig *config);
+	void SetAMG_Outputs(CGeometry *geometry, CConfig *config);
+	void SetAMG_Fw(CConfig *config, CPhysicalGeometry *geo_adapt, string mesh_flowfilename);
+	
 	/*! 
 	 * \brief Do a complete adaptation of the computational grid.
 	 * \param[in] geometry - Geometrical definition of the problem.

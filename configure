@@ -696,6 +696,8 @@ METIS_LIB
 METIS_INCLUDE
 BUILD_INRIA_FALSE
 BUILD_INRIA_TRUE
+INRIA_CPPFLAGS
+INRIA_INCLUDE
 BUILD_TECIO_FALSE
 BUILD_TECIO_TRUE
 TECIO_CPPFLAGS
@@ -848,6 +850,7 @@ enable_complex
 enable_normal
 with_MPI
 enable_tecio
+enable_inria
 enable_metis
 with_metis_cppflags
 enable_parmetis
@@ -1513,6 +1516,7 @@ Optional Features:
   --disable-normal        build executables with normal datatype (default =
                           yes)
   --enable-tecio          build with Tecplot TecIO API support (from source)
+  --enable-inria          build with Inria mesh I/Os (from source)
   --enable-metis          build with Metis graph partitioning suppport
   --disable-parmetis      build without Parmetis parallel graph partitioning
                           suppport
@@ -6181,7 +6185,96 @@ ac_config_files="$ac_config_files externals/tecio/Makefile"
 
 
 # Inria
-CONFIGURE_INRIA
+
+  # Check whether --enable-inria was given.
+if test "${enable_inria+set}" = set; then :
+  enableval=$enable_inria; case "${enableval}" in
+		  yes)  enableinria=yes ;;
+		   no)  enableinria=no ;;
+ 		    *)  as_fn_error $? "bad value ${enableval} for --enable-inria" "$LINENO" 5 ;;
+		 esac
+else
+  enableinria=yes
+fi
+
+
+  # The INRIA API is distributed with SU2, so we don't have to guess
+  # where it might be installed...
+  if (test $enableinria = yes); then
+
+    # inria platform-specific compiler flags
+    INRIA_CPPFLAGS=""
+    case "${host_os}" in
+      *linux*)
+	INRIA_CPPFLAGS="-DLINUX $INRIA_CPPFLAGS"
+	# The cast to long int works around a bug in the HP C Compiler
+# version HP92453-01 B.11.11.23709.GP, which incorrectly rejects
+# declarations like `int a3[[(sizeof (unsigned char)) >= 0]];'.
+# This bug is HP SR number 8606223364.
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking size of void *" >&5
+$as_echo_n "checking size of void *... " >&6; }
+if ${ac_cv_sizeof_void_p+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  if ac_fn_c_compute_int "$LINENO" "(long int) (sizeof (void *))" "ac_cv_sizeof_void_p"        "$ac_includes_default"; then :
+
+else
+  if test "$ac_cv_type_void_p" = yes; then
+     { { $as_echo "$as_me:${as_lineno-$LINENO}: error: in \`$ac_pwd':" >&5
+$as_echo "$as_me: error: in \`$ac_pwd':" >&2;}
+as_fn_error 77 "cannot compute sizeof (void *)
+See \`config.log' for more details" "$LINENO" 5; }
+   else
+     ac_cv_sizeof_void_p=0
+   fi
+fi
+
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_sizeof_void_p" >&5
+$as_echo "$ac_cv_sizeof_void_p" >&6; }
+
+
+
+cat >>confdefs.h <<_ACEOF
+#define SIZEOF_VOID_P $ac_cv_sizeof_void_p
+_ACEOF
+
+
+	if (test $ac_cv_sizeof_void_p = 8); then
+	  INRIA_CPPFLAGS="-DLINUX64 $INRIA_CPPFLAGS"
+	fi
+	;;
+
+      *darwin*)
+	INRIA_CPPFLAGS="-DDARWIN -DLONGIS64 $INRIA_CPPFLAGS"
+        ;;
+
+        *)
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: >>> Unrecognized Inria platform <<<" >&5
+$as_echo ">>> Unrecognized Inria platform <<<" >&6; }
+	;;
+    esac
+
+     INRIA_INCLUDE="-I\$(top_srcdir)/externals/inria"
+     INRIA_LIB="\$(top_builddir)/externals/inria/libinria.a"
+
+$as_echo "#define HAVE_INRIA_API 1" >>confdefs.h
+
+
+$as_echo "#define HAVE_INRIA_API_112 1" >>confdefs.h
+
+     { $as_echo "$as_me:${as_lineno-$LINENO}: result: <<< Configuring library with Inria support >>>" >&5
+$as_echo "<<< Configuring library with Inria support >>>" >&6; }
+     have_inria=yes
+  else
+     INRIA_INCLUDE=""
+     enableinria=no
+     have_inria=no
+  fi
+
+
+
+
 if (test $enableinria = yes); then
   su2_externals_INCLUDES="-DHAVE_INRIA $INRIA_INCLUDE $su2_externals_INCLUDES"
   su2_externals_LIBS="$INRIA_LIB $su2_externals_LIBS"

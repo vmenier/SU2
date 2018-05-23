@@ -3395,6 +3395,683 @@ void CGridAdaptation::SetIndicator_FlowAdj(CGeometry *geometry, CConfig *config)
   
 }
 
+
+
+void CGridAdaptation::AMG_WriteFw(CGeometry *geometry, CConfig *config) {
+	
+	int iPoint, iDim, iVar, Dim, index_loc, index;
+	
+	Dim = nDim;
+	
+	//--- Write fluxes
+	
+	unsigned long OutSol,i, npoin = geometry->GetGlobal_nPointDomain();
+	int VarTyp[GmfMaxTyp], NbrVar=0;
+	double bufDbl[GmfMaxTyp];
+	char OutNam[1024], BasNam[1024];
+	char *ptr=NULL;
+		
+	su2double q2, roH;
+	
+	su2double Gamma = 1.4;
+	su2double Gamma_Minus_One = Gamma-1.0;
+	
+	int OutFw[3] = {-1, -1, -1};
+	char OutFwNam[3][1024] = {"adjoint.FWx.solb", "adjoint.FWy.solb", "adjoint.FWz.solb"};
+	
+	su2double flu[5];
+	su2double sol[5];
+	su2double solcons[5];
+	
+	for (iVar = 0; iVar < nVar; iVar++) {
+		VarTyp[iVar] = GmfSca;
+	}
+	
+	NbrVar = nVar;
+	
+ 	for (iDim = 0; iDim < nDim; iDim++) {
+		OutFw[iDim] = GmfOpenMesh(OutFwNam[iDim],GmfWrite,GmfDouble,nDim);
+		
+		if ( !OutFw[iDim]  ) {
+		  printf("\n\n   !!! Error !!!\n" );
+	    printf("Unable to open %s", OutFwNam[iDim]);
+	    printf("Now exiting...\n\n");
+	    exit(EXIT_FAILURE);
+		}
+		
+		printf("-- Info: %s opened (write).\n", OutFwNam[iDim]);
+		
+		if ( !GmfSetKwd(OutFw[iDim], GmfSolAtVertices, npoin, NbrVar, VarTyp) ) {
+		  printf("\n\n   !!! Error !!!\n" );
+	    printf("Unable to setup solution");
+	    printf("Now exiting...\n\n");
+	    exit(EXIT_FAILURE);
+		}		
+	}
+	
+	long *Global2Local = NULL;
+  Global2Local = new long[geometry->GetGlobal_nPointDomain()];
+  /*--- First, set all indices to a negative value by default ---*/
+  for (iPoint = 0; iPoint < geometry->GetGlobal_nPointDomain(); iPoint++) {
+    Global2Local[iPoint] = -1;
+  }
+
+  /*--- Now fill array with the transform values only for local points ---*/
+  for (iPoint = 0; iPoint < geometry->GetnPointDomain(); iPoint++) {
+    Global2Local[geometry->node[iPoint]->GetGlobalIndex()] = iPoint;
+  }
+	
+	cout << "npoint " <<  geometry->GetnPoint() << " npoint_glo " << geometry->GetGlobal_nPointDomain() << endl;
+	
+	for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint ++) {
+		
+		index = geometry->node[iPoint]->GetGlobalIndex();
+		index_loc = Global2Local[iPoint]; // Warning: ConsVar_Sol is not renumbered
+
+		for (iVar=0; iVar<nVar; iVar++) 
+			solcons[iVar] = ConsVar_Sol[iPoint][iVar];
+		
+		
+		// --- Get Physical var
+		
+		if ( Dim == 2 ) {
+			sol[0] = solcons[0];
+			sol[1] = solcons[1] / solcons[0];
+			sol[2] = solcons[2] / solcons[0];
+			sol[3] = Gamma_Minus_One*(solcons[3]-0.5*(solcons[1]*solcons[1] + solcons[2]*solcons[2])/solcons[0]);
+		}
+		else {
+			sol[0] = solcons[0];
+			sol[1] = solcons[1] / solcons[0];
+			sol[2] = solcons[2] / solcons[0];
+			sol[3] = solcons[3] / solcons[0];
+			sol[4] = Gamma_Minus_One*(solcons[4]-0.5*(solcons[1]*solcons[1] + solcons[2]*solcons[2] + solcons[3]*solcons[3])/solcons[0]);
+		}
+		
+		//for (iVar=1; iVar<nVar; iVar++) 
+		//	sol[iVar] /= sol[0];
+		
+	 //   U[0] = W[0];
+	 //   U[1] = W[1]*rhoInv;
+	 //   U[2] = W[2]*rhoInv;
+	 //   U[3] = Cst->gam1*(W[3] - 0.5*(W[1]*W[1]+W[2]*W[2])*rhoInv);
+	 // }
+   //
+	 // static inline void Wlf_GetPhysical3d(WlfConstants *Cst, double *W, double *U)
+	 // {
+	 //   double rhoInv = 1. / W[0];
+   //
+	 //   U[0] = W[0];
+	 //   U[1] = W[1]*rhoInv;
+	 //   U[2] = W[2]*rhoInv;
+	 //   U[3] = W[3]*rhoInv;
+	 //   U[4] = Cst->gam1*(W[4] - 0.5*(W[1]*W[1]+W[2]*W[2]+W[3]*W[3])*rhoInv);
+		
+		if ( Dim == 2 ) {
+			q2 = sol[1]*sol[1] + sol[2]*sol[2];
+			roH  = Gamma/Gamma_Minus_One*sol[3] + 0.5*sol[0]*q2;
+		}
+		else {
+			q2  = sol[1]*sol[1] + sol[2]*sol[2] + sol[3]*sol[3];
+		  roH = Gamma/Gamma_Minus_One*sol[4] + 0.5*sol[0]*q2;
+		}
+		
+		//--- Fwx
+		
+		if ( Dim == 2 ) {
+		  flu[0] = sol[0]*sol[1];
+		  flu[1] = flu[0]*sol[1] + sol[3];
+		  flu[2] = flu[0]*sol[2];
+		  flu[3] = roH*sol[1];
+		}
+		else {
+			flu[0] = sol[0]*sol[1];
+		  flu[1] = flu[0]*sol[1] + sol[4];
+		  flu[2] = flu[0]*sol[2];
+		  flu[3] = flu[0]*sol[3];
+		  flu[4] = roH*sol[1];
+		}
+	
+		for (i=0; i<nVar; i++)
+			bufDbl[i] = SU2_TYPE::GetValue(flu[i]);
+			
+		if ( geometry->node[index_loc]->GetGlobalIndex() == 6311 ) {
+			printf("\n q2 %lf roH %lf \n", SU2_TYPE::GetValue(q2), SU2_TYPE::GetValue(roH));
+			printf("Point %d crd = %lf %lf local %ld\n", geometry->node[index_loc]->GetGlobalIndex()+1, SU2_TYPE::GetValue(geometry->node[index_loc]->GetCoord(0)), \
+			 SU2_TYPE::GetValue(geometry->node[index_loc]->GetCoord(1)), Global2Local[index]);
+			printf("sol = %lf %lf %lf %lf\n", SU2_TYPE::GetValue(sol[0]), SU2_TYPE::GetValue(sol[1]), \
+				SU2_TYPE::GetValue(sol[2]), SU2_TYPE::GetValue(sol[3]));
+			printf("flu = %lf %lf %lf %lf\n", SU2_TYPE::GetValue(flu[0]), SU2_TYPE::GetValue(flu[1]), \
+				SU2_TYPE::GetValue(flu[2]), SU2_TYPE::GetValue(flu[3]));
+				
+			printf("flu[1] = %lf * %lf + %lf \n", SU2_TYPE::GetValue(flu[0]), SU2_TYPE::GetValue(sol[1]) , SU2_TYPE::GetValue(sol[3]));
+			
+		}
+		
+		GmfSetLin(OutFw[0], GmfSolAtVertices, bufDbl);
+		
+		//--- Fwy
+		
+		if ( Dim == 2 ) {
+			flu[0] = sol[0]*sol[2];
+		  flu[1] = flu[0]*sol[1];
+		  flu[2] = flu[0]*sol[2] + sol[3];
+		  flu[3] = roH*sol[2];
+		}
+		else {
+			flu[0] = sol[0]*sol[2];
+		  flu[1] = flu[0]*sol[1];
+		  flu[2] = flu[0]*sol[2] + sol[4];
+		  flu[3] = flu[0]*sol[3];
+		  flu[4] = roH*sol[2];
+		}
+		
+		for (i=0; i<nVar; i++)
+			bufDbl[i] = SU2_TYPE::GetValue(flu[i]);
+	
+		GmfSetLin(OutFw[1], GmfSolAtVertices, bufDbl);
+		
+		//--- Fwz
+		
+		if ( Dim == 3 ) {
+			flu[0] = sol[0]*sol[3];
+		  flu[1] = flu[0]*sol[1];
+		  flu[2] = flu[0]*sol[2];
+		  flu[3] = flu[0]*sol[3] + sol[4];
+		  flu[4] = roH*sol[3];
+		
+		
+			for (i=0; i<nVar; i++)
+				bufDbl[i] = SU2_TYPE::GetValue(flu[i]);
+
+			GmfSetLin(OutFw[2], GmfSolAtVertices, bufDbl);
+		}
+			
+	}
+	
+	for (iDim = 0; iDim < nDim; iDim++) {
+		if ( !GmfCloseMesh(OutFw[iDim]) ) {
+		  printf("\n\n   !!! Error !!!\n" );
+	    printf("Cannot close solution file");
+	    printf("Now exiting...\n\n");
+	    exit(EXIT_FAILURE);
+		}	
+	}
+	
+	if( Global2Local )
+	  delete [] Global2Local;
+	
+}
+
+
+
+void CGridAdaptation::AMG_WriteWgtFw(CGeometry *geometry, CConfig *config) {
+	
+	unsigned long Point = 0, Point_0 = 0, Point_1 = 0, iEdge, iVertex, iPoint, iElem, iVar, index, index_loc, iDim, iMarker;
+	
+	su2double norm, DualArea, Partial_Res, *Normal;
+	su2double scale_area = config->GetDualVol_Power();
+	int Dim = nDim;
+	
+	
+	long *Global2Local = NULL;
+  Global2Local = new long[geometry->GetGlobal_nPointDomain()];
+  /*--- First, set all indices to a negative value by default ---*/
+  for (iPoint = 0; iPoint < geometry->GetGlobal_nPointDomain(); iPoint++) {
+    Global2Local[iPoint] = -1;
+  }
+
+  /*--- Now fill array with the transform values only for local points ---*/
+  for (iPoint = 0; iPoint < geometry->GetnPointDomain(); iPoint++) {
+    Global2Local[geometry->node[iPoint]->GetGlobalIndex()] = iPoint;
+  }
+	
+	//--- Compute gradient of adjoint var
+	
+	//--- Adjoint gradient structures
+	
+	su2double ** Grad_Adj_x =  NULL;
+	su2double ** Grad_Adj_y =  NULL;
+	su2double ** Grad_Adj_z =  NULL;
+	
+	Grad_Adj_x =  new su2double* [geometry->GetnPoint()];
+	Grad_Adj_y =  new su2double* [geometry->GetnPoint()];
+	if ( Dim == 3 )
+		Grad_Adj_z =  new su2double* [geometry->GetnPoint()];
+	
+	for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint ++) {		
+		Grad_Adj_x[iPoint] = new su2double [nVar];
+		Grad_Adj_y[iPoint] = new su2double [nVar];
+		if ( Dim == 3 )
+			Grad_Adj_z[iPoint] = new su2double [nVar];
+	}
+	
+	//// --- HACK VERIF GRADIENT COMPUTATION
+	//for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint ++) {			
+	//	index_loc = Global2Local[iPoint]; 
+	//	
+	//	for (iVar = 0; iVar < nVar; iVar++) {
+	//		AdjVar_Sol[iPoint][iVar] = geometry->node[index_loc]->GetCoord(0);
+	//	}
+	//
+	//}
+	
+	
+	//// --- Flow gradient structures
+	//
+	//su2double ** Grad_Flow_x =  NULL;
+	//su2double ** Grad_Flow_y =  NULL;
+	//su2double ** Grad_Flow_z =  NULL;
+	//
+	//Grad_Flow_x =  new su2double* [geometry->GetnPoint()];
+	//Grad_Flow_y =  new su2double* [geometry->GetnPoint()];
+	//if ( Dim == 3 )
+	//	Grad_Flow_z =  new su2double* [geometry->GetnPoint()];
+	//
+	//for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint ++) {
+	//	Grad_Flow_x = new su2double [nVar];
+	//	Grad_Flow_y = new su2double [nVar];
+	//	if ( Dim == 3 )
+	//		Grad_Flow_z = new su2double [nVar];
+	//}
+	
+	
+	// Compute the gradient of the first variable.
+	for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
+		for (iVar = 0; iVar < nVar; iVar++) {
+			Grad_Adj_x[iPoint][iVar] = 0.0;
+			Grad_Adj_y[iPoint][iVar] = 0.0;
+			if ( Dim == 3 )
+				Grad_Adj_z[iPoint][iVar] = 0.0;
+		}
+	}
+		//for (iDim = 0; iDim < nDim; iDim++) {
+		//	Gradient_Flow[iPoint][iDim] = 0.0;
+		//	Gradient_Adj[iPoint][iDim] = 0.0;
+		//}
+
+	for (iEdge = 0; iEdge < geometry->GetnEdge(); iEdge++) {	
+		Point_0 = geometry->edge[iEdge]->GetNode(0);
+		Point_1 = geometry->edge[iEdge]->GetNode(1);
+		Normal = geometry->edge[iEdge]->GetNormal();
+		
+		//if ( iEdge < 15 )
+		//	printf("POINT %d (global %d) (%lf %lf) : adj = %lf %lf ...\n", Point_0, geometry->node[Point_0]->GetGlobalIndex(), SU2_TYPE::GetValue(geometry->node[Point_0]->GetCoord(0)), \
+		//	SU2_TYPE::GetValue(geometry->node[Point_0]->GetCoord(1)), SU2_TYPE::GetValue(AdjVar_Sol[Point_0][0]), SU2_TYPE::GetValue(AdjVar_Sol[Point_0][1]));
+		
+		for (iVar = 0; iVar < nVar; iVar++) {
+			
+			Partial_Res = 0.5 * ( AdjVar_Sol[Point_0][iVar] + AdjVar_Sol[Point_1][iVar] ) * Normal[0];
+			Grad_Adj_x[Point_0][iVar] += Partial_Res;
+			Grad_Adj_x[Point_1][iVar] -= Partial_Res;
+			
+			Partial_Res = 0.5 * ( AdjVar_Sol[Point_0][iVar] + AdjVar_Sol[Point_1][iVar] ) * Normal[1];
+			Grad_Adj_y[Point_0][iVar] += Partial_Res;
+			Grad_Adj_y[Point_1][iVar] -= Partial_Res;
+			
+			if ( Dim == 3 ) {
+				Partial_Res = 0.5 * ( AdjVar_Sol[Point_0][iVar] + AdjVar_Sol[Point_1][iVar] ) * Normal[2];
+				Grad_Adj_z[Point_0][iVar] += Partial_Res;
+				Grad_Adj_z[Point_1][iVar] -= Partial_Res;
+			}
+						
+		}
+		
+		//for (iDim = 0; iDim < nDim; iDim++) {
+		//	Partial_Res = 0.5 * ( ConsVar_Sol[Point_0][0] + ConsVar_Sol[Point_1][0] ) * Normal[iDim];
+		//	Gradient_Flow[Point_0][iDim] = Gradient_Flow[Point_0][iDim] + Partial_Res;
+		//	Gradient_Flow[Point_1][iDim] = Gradient_Flow[Point_1][iDim] - Partial_Res;
+    //
+		//	Partial_Res = 0.5 * ( AdjVar_Sol[Point_0][0] + AdjVar_Sol[Point_1][0] ) * Normal[iDim];
+		//	Gradient_Adj[Point_0][iDim] = Gradient_Adj[Point_0][iDim] + Partial_Res;
+		//	Gradient_Adj[Point_1][iDim] = Gradient_Adj[Point_1][iDim] - Partial_Res;			
+		//}				
+	}
+	
+	for (iMarker = 0; iMarker < geometry->GetnMarker(); iMarker++)
+		for (iVertex = 0; iVertex < geometry->GetnVertex(iMarker); iVertex++) {
+			Point = geometry->vertex[iMarker][iVertex]->GetNode();
+			Normal = geometry->vertex[iMarker][iVertex]->GetNormal();
+
+			for (iVar = 0; iVar < nVar; iVar++) {
+				Grad_Adj_x[Point][iVar] -= AdjVar_Sol[Point][iVar] * Normal[0];
+				Grad_Adj_y[Point][iVar] -= AdjVar_Sol[Point][iVar] * Normal[1];
+				if ( Dim == 3 )
+					Grad_Adj_z[Point][iVar] -= AdjVar_Sol[Point][iVar] * Normal[2];
+			}
+			
+			//for (iDim = 0; iDim < nDim; iDim++) {
+			//	Gradient_Flow[Point][iDim] = Gradient_Flow[Point][iDim] - ConsVar_Sol[Point][0] * Normal[iDim];
+			//	Gradient_Adj[Point][iDim]  = Gradient_Adj[Point][iDim] - AdjVar_Sol[Point][0] * Normal[iDim];
+			//}
+		}
+	
+	
+	for (iPoint = 0; iPoint<geometry->GetnPoint(); iPoint++) {
+		DualArea = geometry->node[iPoint]->GetVolume();
+		for (iVar = 0; iVar < nVar; iVar++) {
+			Grad_Adj_x[iPoint][iVar] /= DualArea; 
+			Grad_Adj_y[iPoint][iVar] /= DualArea; 
+			if ( Dim == 3 )
+				Grad_Adj_z[iPoint][iVar] /= DualArea;
+		}                           
+	}
+
+		
+	for (iPoint = 0; iPoint < 5; iPoint ++) {
+		index = geometry->node[iPoint]->GetGlobalIndex();
+		index_loc = Global2Local[iPoint]; // Warning: ConsVar_Sol is not renumbered
+		
+		printf("\nver %d (%lf %lf)\n", iPoint, SU2_TYPE::GetValue(geometry->node[index_loc]->GetCoord(0)), SU2_TYPE::GetValue(geometry->node[index_loc]->GetCoord(1)));
+		printf("adj = %lf %lf %lf %lf\n", SU2_TYPE::GetValue(AdjVar_Sol[iPoint][0]), SU2_TYPE::GetValue(AdjVar_Sol[iPoint][1]), SU2_TYPE::GetValue(AdjVar_Sol[iPoint][2]), SU2_TYPE::GetValue(AdjVar_Sol[iPoint][3]));
+		printf("gra0 = %lf %lf\n", SU2_TYPE::GetValue(Grad_Adj_x[iPoint][0]), SU2_TYPE::GetValue(Grad_Adj_y[iPoint][0]));
+	}
+	
+	//--- Write adjoint gradient
+	
+	unsigned long OutSol,i, npoin = geometry->GetGlobal_nPointDomain();
+	int VarTyp[GmfMaxTyp], NbrVar=0;
+	double bufDbl[GmfMaxTyp];
+	char OutNam[1024], BasNam[1024];
+	char *ptr=NULL;
+		
+	su2double q2, roH;
+	
+	su2double Gamma = 1.4;
+	su2double Gamma_Minus_One = Gamma-1.0;
+	
+	int OutFw[3] = {-1, -1, -1};
+	char OutFwNam[3][1024] = {"adjoint.WgtFWx.solb", "adjoint.WgtFWy.solb", "adjoint.WgtFWz.solb"};
+	
+	su2double gra[5];
+	
+	for (iVar = 0; iVar < nVar; iVar++) {
+		VarTyp[iVar] = GmfSca;
+	}
+	
+	NbrVar = nVar;
+	
+ 	for (iDim = 0; iDim < nDim; iDim++) {
+		OutFw[iDim] = GmfOpenMesh(OutFwNam[iDim],GmfWrite,GmfDouble,nDim);
+		
+		if ( !OutFw[iDim]  ) {
+		  printf("\n\n   !!! Error !!!\n" );
+	    printf("Unable to open %s", OutFwNam[iDim]);
+	    printf("Now exiting...\n\n");
+	    exit(EXIT_FAILURE);
+		}
+		
+		printf("-- Info: %s opened (write).\n", OutFwNam[iDim]);
+		
+		if ( !GmfSetKwd(OutFw[iDim], GmfSolAtVertices, npoin, NbrVar, VarTyp) ) {
+		  printf("\n\n   !!! Error !!!\n" );
+	    printf("Unable to setup solution");
+	    printf("Now exiting...\n\n");
+	    exit(EXIT_FAILURE);
+		}		
+	}
+	
+
+	
+	for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint ++) {
+		
+		index = geometry->node[iPoint]->GetGlobalIndex();
+		index_loc = Global2Local[iPoint]; // Warning: ConsVar_Sol is not renumbered
+
+		
+		for (iVar=0; iVar<nVar; iVar++) 
+			bufDbl[iVar] = SU2_TYPE::GetValue(Grad_Adj_x[iPoint][iVar]);
+			//bufDbl[iVar] =	SU2_TYPE::GetValue(geometry->node[index_loc]->GetCoord(0));
+			//bufDbl[iVar] = SU2_TYPE::GetValue(AdjVar_Sol[iPoint][0]);
+		
+		//if ( iPoint < 5 ) {
+		//	printf("\n q2 %lf roH %lf \n", SU2_TYPE::GetValue(q2), SU2_TYPE::GetValue(roH));
+		//	printf("Point %d crd = %lf %lf local %ld\n", geometry->node[index_loc]->GetGlobalIndex()+1, SU2_TYPE::GetValue(geometry->node[index_loc]->GetCoord(0)), \
+		//	 SU2_TYPE::GetValue(geometry->node[index_loc]->GetCoord(1)), Global2Local[index]);
+		//	printf("sol = %lf %lf %lf %lf\n", SU2_TYPE::GetValue(sol[0]), SU2_TYPE::GetValue(sol[1]), \
+		//		SU2_TYPE::GetValue(sol[2]), SU2_TYPE::GetValue(sol[3]));
+		//	printf("flu = %lf %lf %lf %lf\n", SU2_TYPE::GetValue(flu[0]), SU2_TYPE::GetValue(flu[1]), \
+		//		SU2_TYPE::GetValue(flu[2]), SU2_TYPE::GetValue(flu[3]));
+		//	printf("flu[1] = %lf * %lf + %lf \n", SU2_TYPE::GetValue(flu[0]), SU2_TYPE::GetValue(sol[1]) , SU2_TYPE::GetValue(sol[3]));
+		//}
+	
+		GmfSetLin(OutFw[0], GmfSolAtVertices, bufDbl);
+		
+		//--- Fwy
+		
+		for (iVar=0; iVar<nVar; iVar++) 
+			bufDbl[iVar] = SU2_TYPE::GetValue(Grad_Adj_y[iPoint][iVar]);	
+			
+		GmfSetLin(OutFw[1], GmfSolAtVertices, bufDbl);
+		
+		//--- Fwz
+		
+		if ( Dim == 3 ) {
+			for (iVar=0; iVar<nVar; iVar++) 
+				bufDbl[iVar] = SU2_TYPE::GetValue(Grad_Adj_z[iPoint][iVar]);
+
+			GmfSetLin(OutFw[2], GmfSolAtVertices, bufDbl);
+		}
+			
+	}
+	
+	for (iDim = 0; iDim < nDim; iDim++) {
+		if ( !GmfCloseMesh(OutFw[iDim]) ) {
+		  printf("\n\n   !!! Error !!!\n" );
+	    printf("Cannot close solution file");
+	    printf("Now exiting...\n\n");
+	    exit(EXIT_FAILURE);
+		}	
+	}
+	
+	if( Global2Local )
+	  delete [] Global2Local;
+	
+	//--- Clear memory
+	
+	for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint ++) {
+		delete [] Grad_Adj_x[iPoint];
+		delete [] Grad_Adj_y[iPoint];
+		if (Dim == 3)
+			delete [] Grad_Adj_z[iPoint];
+	}		
+	delete [] Grad_Adj_x;
+	delete [] Grad_Adj_y;
+	if (Dim == 3)
+		delete [] Grad_Adj_z;
+	
+}
+
+
+
+void CGridAdaptation::SetAMG_Outputs(CGeometry *geometry, CConfig *config) {
+	su2double Dual_Area;
+	unsigned long Point = 0, Point_0 = 0, Point_1 = 0, iEdge, iVertex, iPoint, iElem, iVar, index, index_loc;
+	unsigned short iDim, iMarker;
+	su2double norm, DualArea, Partial_Res, *Normal;
+	su2double scale_area = config->GetDualVol_Power();
+	
+	int Dim = geometry->GetnDim();
+	
+//	//--- Adjoint gradient structures
+//	
+//	su2double ** Grad_Adj_x =  NULL;
+//	su2double ** Grad_Adj_y =  NULL;
+//	su2double ** Grad_Adj_z =  NULL;
+//	
+//	Grad_Adj_x =  new su2double* [geometry->GetnPoint()];
+//	Grad_Adj_y =  new su2double* [geometry->GetnPoint()];
+//	if ( Dim == 3 )
+//		Grad_Adj_z =  new su2double* [geometry->GetnPoint()];
+//	
+//	for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint ++) {
+//		Grad_Adj_x[iPoint] = new su2double [nVar];
+//		Grad_Adj_y[iPoint] = new su2double [nVar];
+//		if ( Dim == 3 )
+//			Grad_Adj_z[iPoint] = new su2double [nVar];
+//	}
+//	
+//	//// --- Flow gradient structures
+//	//
+//	//su2double ** Grad_Flow_x =  NULL;
+//	//su2double ** Grad_Flow_y =  NULL;
+//	//su2double ** Grad_Flow_z =  NULL;
+//	//
+//	//Grad_Flow_x =  new su2double* [geometry->GetnPoint()];
+//	//Grad_Flow_y =  new su2double* [geometry->GetnPoint()];
+//	//if ( Dim == 3 )
+//	//	Grad_Flow_z =  new su2double* [geometry->GetnPoint()];
+//	//
+//	//for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint ++) {
+//	//	Grad_Flow_x = new su2double [nVar];
+//	//	Grad_Flow_y = new su2double [nVar];
+//	//	if ( Dim == 3 )
+//	//		Grad_Flow_z = new su2double [nVar];
+//	//}
+//	
+//	
+//	// Compute the gradient of the first variable.
+//	for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint++) {
+//		for (iVar = 0; iVar < nVar; iVar++) {
+//			Grad_Adj_x[iPoint][iVar] = 0.0;
+//			Grad_Adj_y[iPoint][iVar] = 0.0;
+//			if ( Dim == 3 )
+//				Grad_Adj_z[iPoint][iVar] = 0.0;
+//		}
+//	}
+//		//for (iDim = 0; iDim < nDim; iDim++) {
+//		//	Gradient_Flow[iPoint][iDim] = 0.0;
+//		//	Gradient_Adj[iPoint][iDim] = 0.0;
+//		//}
+//
+//	for (iEdge = 0; iEdge < geometry->GetnEdge(); iEdge++) {	
+//		Point_0 = geometry->edge[iEdge]->GetNode(0);
+//		Point_1 = geometry->edge[iEdge]->GetNode(1);
+//		Normal = geometry->edge[iEdge]->GetNormal();
+//		
+//		for (iVar = 0; iVar < nVar; iVar++) {
+//			
+//			Partial_Res = 0.5 * ( AdjVar_Sol[Point_0][iVar] + AdjVar_Sol[Point_1][iVar] ) * Normal[0];
+//			Grad_Adj_x[Point_0][iVar] += Partial_Res;
+//			Grad_Adj_x[Point_1][iVar] -= Partial_Res;
+//			
+//			Partial_Res = 0.5 * ( AdjVar_Sol[Point_0][iVar] + AdjVar_Sol[Point_1][iVar] ) * Normal[1];
+//			Grad_Adj_y[Point_0][iVar] += Partial_Res;
+//			Grad_Adj_y[Point_1][iVar] -= Partial_Res;
+//			
+//			if ( Dim == 3 ) {
+//				Partial_Res = 0.5 * ( AdjVar_Sol[Point_0][iVar] + AdjVar_Sol[Point_1][iVar] ) * Normal[2];
+//				Grad_Adj_z[Point_0][iVar] += Partial_Res;
+//				Grad_Adj_z[Point_1][iVar] -= Partial_Res;
+//			}
+//						
+//		}
+//		
+//		//for (iDim = 0; iDim < nDim; iDim++) {
+//		//	Partial_Res = 0.5 * ( ConsVar_Sol[Point_0][0] + ConsVar_Sol[Point_1][0] ) * Normal[iDim];
+//		//	Gradient_Flow[Point_0][iDim] = Gradient_Flow[Point_0][iDim] + Partial_Res;
+//		//	Gradient_Flow[Point_1][iDim] = Gradient_Flow[Point_1][iDim] - Partial_Res;
+//    //
+//		//	Partial_Res = 0.5 * ( AdjVar_Sol[Point_0][0] + AdjVar_Sol[Point_1][0] ) * Normal[iDim];
+//		//	Gradient_Adj[Point_0][iDim] = Gradient_Adj[Point_0][iDim] + Partial_Res;
+//		//	Gradient_Adj[Point_1][iDim] = Gradient_Adj[Point_1][iDim] - Partial_Res;			
+//		//}				
+//	}
+//	
+//	for (iMarker = 0; iMarker < geometry->GetnMarker(); iMarker++)
+//		for (iVertex = 0; iVertex < geometry->GetnVertex(iMarker); iVertex++) {
+//			Point = geometry->vertex[iMarker][iVertex]->GetNode();
+//			Normal = geometry->vertex[iMarker][iVertex]->GetNormal();
+//
+//			for (iVar = 0; iVar < nVar; iVar++) {
+//				Grad_Adj_x[Point][iVar] -= AdjVar_Sol[Point][iVar] * Normal[0];
+//				Grad_Adj_y[Point][iVar] -= AdjVar_Sol[Point][iVar] * Normal[1];
+//				//if ( Dim == 3 )
+//				//	Grad_Adj_z[iPoint][iVar] -= AdjVar_Sol[Point][iVar] * Normal[2];
+//			}
+//			
+//			//for (iDim = 0; iDim < nDim; iDim++) {
+//			//	Gradient_Flow[Point][iDim] = Gradient_Flow[Point][iDim] - ConsVar_Sol[Point][0] * Normal[iDim];
+//			//	Gradient_Adj[Point][iDim]  = Gradient_Adj[Point][iDim] - AdjVar_Sol[Point][0] * Normal[iDim];
+//			//}
+//		}
+	
+	
+	//for (iPoint = 0; iPoint<geometry->GetnPoint(); iPoint++)
+	//	for (iVar = 0; iVar < nVar; iVar++) {
+	//		DualArea = geometry->node[iPoint]->GetVolume();
+	//		Grad_Adj_x[iPoint][iVar] /= DualArea;
+	//		Grad_Adj_y[iPoint][iVar] /= DualArea;
+	//		if ( Dim == 3 )
+	//			Grad_Adj_z[iPoint][iVar] /= DualArea;
+	//	}
+	//	//for (iDim = 0; iDim < nDim; iDim++) {
+	//	//	DualArea = geometry->node[iPoint]->GetVolume();
+	//	//	Gradient_Flow[iPoint][iDim] = Gradient_Flow[iPoint][iDim]/DualArea;
+	//	//	Gradient_Adj[iPoint][iDim]  = Gradient_Adj[iPoint][iDim]/DualArea;
+	//	//}
+	
+	AMG_WriteFw(geometry, config);
+	AMG_WriteWgtFw(geometry, config);
+	
+	
+	
+	// --- Write WgtFw
+	
+	
+	
+		
+//	//--- Clear memory
+//	
+//	for (iPoint = 0; iPoint < geometry->GetnPoint(); iPoint ++) {
+//		delete [] Grad_Adj_x[iPoint];
+//		delete [] Grad_Adj_y[iPoint];
+//		if (Dim == 3)
+//			delete [] Grad_Adj_z[iPoint];
+//	}		
+//	delete [] Grad_Adj_x;
+//	delete [] Grad_Adj_y;
+//	if (Dim == 3)
+//		delete [] Grad_Adj_z;
+//		
+//
+}
+
+
+
+
+void CGridAdaptation::SetAMG_Fw(CConfig *config, CPhysicalGeometry *geo_adapt, string mesh_flowfilename) {
+	
+	unsigned long iPoint;
+	unsigned short iVar, iDim;
+		
+	char *cstr = new char [mesh_flowfilename.size()+1];
+	strcpy (cstr, mesh_flowfilename.c_str());
+	
+	ofstream restart_flowfile;
+	restart_flowfile.open(cstr, ios::out);
+	restart_flowfile.precision(15);
+  
+  restart_flowfile << "Restart file generated with SU2_MSH" << endl;
+
+	for (iPoint = 0; iPoint < nPoint_new; iPoint++) {
+		restart_flowfile << iPoint <<"\t";
+
+    for (iDim = 0; iDim < nDim; iDim++)
+			restart_flowfile << scientific << geo_adapt->node[iPoint]->GetCoord(iDim) <<"\t";
+		for (iVar = 0; iVar < nVar; iVar++)
+			restart_flowfile << scientific << ConsVar_Adapt[iPoint][iVar] <<"\t";
+
+		restart_flowfile << endl;
+	}
+	restart_flowfile.close();
+	
+}
+
+
+
+
+
 void CGridAdaptation::SetIndicator_Robust(CGeometry *geometry, CConfig *config) {
 	unsigned long iPoint, iElem, max_elem_new_flow, max_elem_new_adj;
 	unsigned short iVar;
