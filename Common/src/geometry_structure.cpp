@@ -14757,6 +14757,7 @@ void CPhysicalGeometry::FindNormal_Neighbor(CConfig *config) {
   unsigned short iNeigh, iMarker, iDim;
   unsigned long iPoint, iVertex;
   
+	
   for (iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++) {
     
     if (config->GetMarker_All_KindBC(iMarker) != SEND_RECEIVE &&

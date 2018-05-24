@@ -4622,12 +4622,12 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
     
   }
 	
-	
   /*--- Evaluate thrust. ---*/
 	
 	bool thrust = (config[val_iZone]->GetnMarker_Thrust() != 0);			
+		
 	if (thrust) {
-		SetNozzleThrust(solver_container[val_iZone][FinestMesh][FLOW_SOL], geometry[val_iZone][FinestMesh], config[val_iZone]);
+		SetNozzleThrust(solver_container[val_iZone][MESH_0][FLOW_SOL], geometry[val_iZone][FinestMesh], config[val_iZone]);
 	}
   
   /*--- Output using only the master node ---*/
@@ -8568,7 +8568,7 @@ void COutput::SetCp_InverseDesign(CSolver *solver_container, CGeometry *geometry
 
 void COutput::SetNozzleThrust(CSolver *solver_container, CGeometry *geometry, CConfig *config) {
 	
-  unsigned short iMarker, iDim, iNodes;
+  unsigned short iMarker, iDim, iNode;
   unsigned long iVertex, iPoint, nPointLocal = 0, nPointGlobal = 0;
 	
   su2double Pressure, CpTarget, *Normal = NULL, Area;
@@ -8590,30 +8590,12 @@ void COutput::SetNozzleThrust(CSolver *solver_container, CGeometry *geometry, CC
 	bool grid_movement = config->GetGrid_Movement();
   bool compressible = (config->GetKind_Regime() == COMPRESSIBLE);
   bool incompressible = (config->GetKind_Regime() == INCOMPRESSIBLE);
-
-	long *Global2Local = NULL;
-  Global2Local = new long[geometry->GetGlobal_nPointDomain()];
-  /*--- First, set all indices to a negative value by default ---*/
-  for (iPoint = 0; iPoint < geometry->GetGlobal_nPointDomain(); iPoint++) {
-    Global2Local[iPoint] = -1;
-  }
-
-  /*--- Now fill array with the transform values only for local points ---*/
-  for (iPoint = 0; iPoint < geometry->GetnPointDomain(); iPoint++) {
-    Global2Local[geometry->node[iPoint]->GetGlobalIndex()] = iPoint;
-  }
-	
-  nPointLocal = geometry->GetnPoint();
-#ifdef HAVE_MPI
-  SU2_MPI::Allreduce(&nPointLocal, &nPointGlobal, 1, MPI_UNSIGNED_LONG, MPI_SUM, MPI_COMM_WORLD);
-#else
-  nPointGlobal = nPointLocal;
-#endif
-	
+		
 	/*--- Compute some reference quantities and necessary values ---*/
   RefDensity = solver_container->GetDensity_Inf();
   RefPressure = solver_container->GetPressure_Inf();
   Velocity_Inf = solver_container->GetVelocity_Inf();
+	
   Gamma = config->GetGamma();
   Origin = config->GetRefOriginMoment(0);
   Alpha            = config->GetAoA()*PI_NUMBER/180.0;
@@ -8634,98 +8616,131 @@ void COutput::SetNozzleThrust(CSolver *solver_container, CGeometry *geometry, CC
   }
 	RefVel2 = sqrt(RefVel2);
 	
-		
 	int iElem;
 	CPrimalGrid* bnd = NULL;
 	
 	// Check total area
 	AreaTot = 0.0;
 	Thrust = 0.0;
-  for (iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++){
-    if (config->GetMarker_All_Thrust(iMarker) == YES) {
-      for (iVertex = 0; iVertex < geometry->nVertex[iMarker]; iVertex++) {
-        iPoint = geometry->vertex[iMarker][iVertex]->GetNode();
-        Normal = geometry->vertex[iMarker][iVertex]->GetNormal();
-        Area = 0.0;
-        for (iDim = 0; iDim < geometry->GetnDim(); iDim++) Area += Normal[iDim]*Normal[iDim];
-        Area = sqrt (Area);
-				AreaTot += Area;
-				
-				rho  = solver_container->node[iPoint]->GetDensity();
-				pres = solver_container->node[iPoint]->GetPressure();
-				
-				if ( iVertex < 5 ) {
-					cout << "Ver " << iVertex << " iPoint " << iPoint << " " << geometry->node[iPoint]->GetCoord(0) << " " << geometry->node[iPoint]->GetCoord(1) << " " << geometry->node[iPoint]->GetCoord(2);
-					cout << "  rho : " <<   rho << endl;
-				}
-				
-				su2double rhoU = solver_container->node[iPoint]->GetSolution(1);
-				
-				velMod = 0.0;
-				for (iDim = 0; iDim < geometry->GetnDim(); iDim++) {
-				  vel[iDim] = solver_container->node[iPoint]->GetVelocity(iDim);
-					velMod += vel[iDim]*vel[iDim];
-				}
-				velMod = sqrt(velMod);
-				
-				Thrust +=  Area*(rho*velMod*(velMod-RefVel2)+pres-RefPressure);
-				
-      }
-    }
-	}
 	
-	cout << "AREA TOT " << AreaTot << endl;
-	cout << "THRUST " << Thrust << endl;
-	exit(1);
-		
-  for (iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++) {
-		
-    if (config->GetMarker_All_Thrust(iMarker) == YES) {
+	if (  geometry->GetnDim() == 2 ) {
+	
+	  for (iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++){
+	    if (config->GetMarker_All_Thrust(iMarker) == YES) {
 						
-			for (iElem = 0; iElem < geometry->GetnElem_Bound(iMarker); iElem++) {
-				bnd = geometry->bound[iMarker][iElem];
-				
-				for (iNodes = 0; iNodes < bnd->GetnNodes(); iNodes++) {
-										
-					if ( Global2Local[geometry->node[bnd->GetNode(iNodes)]->GetGlobalIndex()] < 0  ) {
+	      for (iVertex = 0; iVertex < geometry->nVertex[iMarker]; iVertex++) {
+	        iPoint = geometry->vertex[iMarker][iVertex]->GetNode();
+					
+					
+					if ( !geometry->node[iPoint]->GetDomain()) {
+						cout << "SKIP POINT " << iPoint << endl;
 						continue;
-					} 
+					}
 					
-					iPoint = Global2Local[geometry->node[bnd->GetNode(iNodes)]->GetGlobalIndex()];
-					Global2Local[geometry->node[bnd->GetNode(iNodes)]->GetGlobalIndex()] = -2;
-					iVertex = geometry->node[iPoint]->GetVertex(iMarker);
-					
-					Normal = geometry->vertex[iMarker][iVertex]->GetNormal();
-					
-					Area = 0.0;
-					for (iDim = 0; iDim < geometry->GetnDim(); iDim++)
-					  Area += Normal[iDim]*Normal[iDim];
-					Area = sqrt(Area);							
+	        Normal = geometry->vertex[iMarker][iVertex]->GetNormal();
+	        Area = 0.0;
+	        for (iDim = 0; iDim < geometry->GetnDim(); iDim++) Area += Normal[iDim]*Normal[iDim];
+	        Area = sqrt (Area);
 					AreaTot += Area;
-					
-					rho  = solver_container->node[iPoint]->GetDensity();
+				
+					rho  = solver_container->node[iPoint]->GetDensity()*config->GetDensity_Ref();
 					pres = solver_container->node[iPoint]->GetPressure();
-					
+				
+					//if ( iVertex < 5 ) {
+					//							
+					//	cout << "Ver " << iVertex << " iPoint " << iPoint << " " << geometry->node[iPoint]->GetCoord(0) << " " << geometry->node[iPoint]->GetCoord(1) << " " << geometry->node[iPoint]->GetCoord(2) << endl;
+					//	cout << "  rho : " <<   rho << endl;
+					//	cout << "  area: " << Area << endl;
+					//	cout << "Global : " << geometry->node[iPoint]->GetGlobalIndex() << endl;
+					//}
 					
 					su2double rhoU = solver_container->node[iPoint]->GetSolution(1);
-					
+				
 					velMod = 0.0;
 					for (iDim = 0; iDim < geometry->GetnDim(); iDim++) {
 					  vel[iDim] = solver_container->node[iPoint]->GetVelocity(iDim);
 						velMod += vel[iDim]*vel[iDim];
 					}
 					velMod = sqrt(velMod);
-					
-					Thrust +=  Area*(rho*velMod*(velMod-RefVel2)+pres-RefPressure);
-					
-					//cout << geometry->node[iPoint]->GetCoord(0) << " " << geometry->node[iPoint]->GetCoord(1) << " " << solver_container->node[iPoint]->GetSolution(0) << " " << solver_container->node[iPoint]->GetSolution(1) << " " << solver_container->node[iPoint]->GetSolution(2) << " " << pres << " " << Area << endl;
-					
-				}
 				
-			}
+					//Thrust +=  Area*(rho*velMod*(velMod-RefVel2)+pres-RefPressure);
+					Thrust +=  Area*(rho*velMod*(velMod-RefVel2)+pres-RefPressure);
+	      }
+	    }
+		}
+	
+	}
+	
+	else {
+		
+		su2double rhoU;
+	
+		su2double a[3], b[3], v[3][3];
+
+		AreaTot = 0.0;
+		Thrust = 0.0;
+	
+		su2double us3 = 1.0/3.0;
 			
-    }
-  }
+	  for (iMarker = 0; iMarker < config->GetnMarker_All(); iMarker++) {
+	    if (config->GetMarker_All_Thrust(iMarker) == YES) {
+			
+				for (iElem = 0; iElem < geometry->GetnElem_Bound(iMarker); iElem++) {
+				
+					bnd = geometry->bound[iMarker][iElem];
+				
+					if ( bnd->GetnNodes() != 3 ) {
+						cout << "## ERROR SetNozzleThrust : Only triangular boundary elements implemented yet." << endl;
+						exit(1);
+					}
+				
+					//--- Compute triangle area
+				
+					for (iNode = 0; iNode < bnd->GetnNodes(); iNode++) {
+							iPoint = bnd->GetNode(iNode);
+							for (iDim = 0; iDim < geometry->GetnDim(); iDim++) 
+								v[iNode][iDim] = geometry->node[iPoint]->GetCoord(iDim);			
+					}
+				
+					for (iDim = 0; iDim < geometry->GetnDim(); iDim++) {
+	      	  a[iDim] = v[1][iDim] - v[0][iDim];
+	      	  b[iDim] = v[2][iDim] - v[0][iDim];
+					}
+				
+	      	Area = 0.0;
+	      	Area += (a[1]*b[2]-a[2]*b[1])*(a[1]*b[2]-a[2]*b[1]);
+	      	Area += (a[2]*b[0]-a[0]*b[2])*(a[2]*b[0]-a[0]*b[2]);
+	      	Area += (a[0]*b[1]-a[1]*b[0])*(a[0]*b[1]-a[1]*b[0]);
+	      	Area = 0.5*sqrt(Area);
+				
+					AreaTot += Area;
+				
+					//--- Compute thrust contributions of nodes
+				
+					for (iNode = 0; iNode < bnd->GetnNodes(); iNode++) {
+							iPoint = bnd->GetNode(iNode);						
+							iVertex = geometry->node[iPoint]->GetVertex(iMarker);
+							
+							rho  = solver_container->node[iPoint]->GetDensity();
+							pres = solver_container->node[iPoint]->GetPressure();
+							rhoU = solver_container->node[iPoint]->GetSolution(1);
+							
+							velMod = 0.0;
+							for (iDim = 0; iDim < geometry->GetnDim(); iDim++) {
+							  vel[iDim] = solver_container->node[iPoint]->GetVelocity(iDim);
+								velMod += vel[iDim]*vel[iDim];
+							}
+							velMod = sqrt(velMod);
+														
+							Thrust += us3*Area*(rho*velMod*(velMod-RefVel2)+pres-RefPressure);
+											
+					}
+				}
+			}	
+		}
+		
+	}
+	
 
 #ifdef HAVE_MPI
 
@@ -8738,19 +8753,15 @@ void COutput::SetNozzleThrust(CSolver *solver_container, CGeometry *geometry, CC
   SU2_MPI::Allreduce(&My_Total_Thrust, &Thrust, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	
 #endif
-
-	if ( Global2Local )
-		delete [] Global2Local;
 	
 	if ( config->GetAxisymmetric() ) {
 		Thrust *= PI_NUMBER * AreaTot;
 	}
 	
-	if ( rank == MASTER_NODE )
-		cout << "AREA = " << AreaTot << endl;
+	//if ( rank == MASTER_NODE )
+	//	cout << "AREA = " << AreaTot << endl;
+	//
 	
-	
-	exit(1);
 	//if ( rank == MASTER_NODE )
 	//	cout << "THRUST = " << Thrust << endl;
 	
