@@ -3470,8 +3470,7 @@ void CGridAdaptation::AMG_WriteFw(CGeometry *geometry, CConfig *config) {
 
 		for (iVar=0; iVar<nVar; iVar++) 
 			solcons[iVar] = ConsVar_Sol[iPoint][iVar];
-		
-		
+
 		// --- Get Physical var
 		
 		if ( Dim == 2 ) {
@@ -3656,7 +3655,6 @@ void CGridAdaptation::AMG_WriteWgtFw(CGeometry *geometry, CConfig *config) {
 	//
 	//}
 	
-	
 	//// --- Flow gradient structures
 	//
 	//su2double ** Grad_Flow_x =  NULL;
@@ -3696,14 +3694,18 @@ void CGridAdaptation::AMG_WriteWgtFw(CGeometry *geometry, CConfig *config) {
 		Normal = geometry->edge[iEdge]->GetNormal();
 		
 		//if ( iEdge < 15 )
-		//	printf("POINT %d (global %d) (%lf %lf) : adj = %lf %lf ...\n", Point_0, geometry->node[Point_0]->GetGlobalIndex(), SU2_TYPE::GetValue(geometry->node[Point_0]->GetCoord(0)), \
-		//	SU2_TYPE::GetValue(geometry->node[Point_0]->GetCoord(1)), SU2_TYPE::GetValue(AdjVar_Sol[Point_0][0]), SU2_TYPE::GetValue(AdjVar_Sol[Point_0][1]));
+		//		printf("POINT %d (global %d) (%le %le) : adj = %le %le ...\n", Point_0, geometry->node[Point_0]->GetGlobalIndex(), SU2_TYPE::GetValue(geometry->node[Point_0]->GetCoord(0)), \
+		//				SU2_TYPE::GetValue(geometry->node[Point_0]->GetCoord(1)), SU2_TYPE::GetValue(AdjVar_Sol[Point_0][0]), SU2_TYPE::GetValue(AdjVar_Sol[Point_0][1]));
 		
 		for (iVar = 0; iVar < nVar; iVar++) {
 			
 			Partial_Res = 0.5 * ( AdjVar_Sol[Point_0][iVar] + AdjVar_Sol[Point_1][iVar] ) * Normal[0];
 			Grad_Adj_x[Point_0][iVar] += Partial_Res;
 			Grad_Adj_x[Point_1][iVar] -= Partial_Res;
+			
+			//-hack
+			//Grad_Adj_x[Point_0][iVar] = AdjVar_Sol[Point_0][iVar];
+			//Grad_Adj_x[Point_1][iVar] = AdjVar_Sol[Point_1][iVar];
 			
 			Partial_Res = 0.5 * ( AdjVar_Sol[Point_0][iVar] + AdjVar_Sol[Point_1][iVar] ) * Normal[1];
 			Grad_Adj_y[Point_0][iVar] += Partial_Res;
@@ -3734,7 +3736,7 @@ void CGridAdaptation::AMG_WriteWgtFw(CGeometry *geometry, CConfig *config) {
 			Normal = geometry->vertex[iMarker][iVertex]->GetNormal();
 
 			for (iVar = 0; iVar < nVar; iVar++) {
-				Grad_Adj_x[Point][iVar] -= AdjVar_Sol[Point][iVar] * Normal[0];
+				Grad_Adj_x[Point][iVar] -= AdjVar_Sol[Point][iVar] * Normal[0]; 
 				Grad_Adj_y[Point][iVar] -= AdjVar_Sol[Point][iVar] * Normal[1];
 				if ( Dim == 3 )
 					Grad_Adj_z[Point][iVar] -= AdjVar_Sol[Point][iVar] * Normal[2];
@@ -3750,7 +3752,7 @@ void CGridAdaptation::AMG_WriteWgtFw(CGeometry *geometry, CConfig *config) {
 	for (iPoint = 0; iPoint<geometry->GetnPoint(); iPoint++) {
 		DualArea = geometry->node[iPoint]->GetVolume();
 		for (iVar = 0; iVar < nVar; iVar++) {
-			Grad_Adj_x[iPoint][iVar] /= DualArea; 
+			Grad_Adj_x[iPoint][iVar] /= DualArea;  
 			Grad_Adj_y[iPoint][iVar] /= DualArea; 
 			if ( Dim == 3 )
 				Grad_Adj_z[iPoint][iVar] /= DualArea;
@@ -3758,14 +3760,14 @@ void CGridAdaptation::AMG_WriteWgtFw(CGeometry *geometry, CConfig *config) {
 	}
 
 		
-	for (iPoint = 0; iPoint < 5; iPoint ++) {
-		index = geometry->node[iPoint]->GetGlobalIndex();
-		index_loc = Global2Local[iPoint]; // Warning: ConsVar_Sol is not renumbered
-		
-		printf("\nver %d (%lf %lf)\n", iPoint, SU2_TYPE::GetValue(geometry->node[index_loc]->GetCoord(0)), SU2_TYPE::GetValue(geometry->node[index_loc]->GetCoord(1)));
-		printf("adj = %lf %lf %lf %lf\n", SU2_TYPE::GetValue(AdjVar_Sol[iPoint][0]), SU2_TYPE::GetValue(AdjVar_Sol[iPoint][1]), SU2_TYPE::GetValue(AdjVar_Sol[iPoint][2]), SU2_TYPE::GetValue(AdjVar_Sol[iPoint][3]));
-		printf("gra0 = %lf %lf\n", SU2_TYPE::GetValue(Grad_Adj_x[iPoint][0]), SU2_TYPE::GetValue(Grad_Adj_y[iPoint][0]));
-	}
+	//for (iPoint = 0; iPoint < 5; iPoint ++) {
+	//	index = geometry->node[iPoint]->GetGlobalIndex();
+	//	index_loc = Global2Local[iPoint]; // Warning: ConsVar_Sol is not renumbered
+	//	
+	//	printf("\nver %d (%lf %lf)\n", iPoint, SU2_TYPE::GetValue(geometry->node[index_loc]->GetCoord(0)), SU2_TYPE::GetValue(geometry->node[index_loc]->GetCoord(1)));
+	//	printf("adj = %lf %lf %lf %lf\n", SU2_TYPE::GetValue(AdjVar_Sol[iPoint][0]), SU2_TYPE::GetValue(AdjVar_Sol[iPoint][1]), SU2_TYPE::GetValue(AdjVar_Sol[iPoint][2]), SU2_TYPE::GetValue(AdjVar_Sol[iPoint][3]));
+	//	printf("gra0 = %lf %lf\n", SU2_TYPE::GetValue(Grad_Adj_x[iPoint][0]), SU2_TYPE::GetValue(Grad_Adj_y[iPoint][0]));
+	//}
 	
 	//--- Write adjoint gradient
 	
@@ -3834,7 +3836,14 @@ void CGridAdaptation::AMG_WriteWgtFw(CGeometry *geometry, CConfig *config) {
 		//		SU2_TYPE::GetValue(flu[2]), SU2_TYPE::GetValue(flu[3]));
 		//	printf("flu[1] = %lf * %lf + %lf \n", SU2_TYPE::GetValue(flu[0]), SU2_TYPE::GetValue(sol[1]) , SU2_TYPE::GetValue(sol[3]));
 		//}
-	
+		
+		
+		//if (iPoint < 5) {
+		//	//cout << "POINT " << iPoint << " WgtFw : " << 
+		//	printf("POINT %d : WgtFwx = %.2le %.2le %.2le ...\n", iPoint, bufDbl[0], bufDbl[1], bufDbl[2]);
+		//}
+		
+		
 		GmfSetLin(OutFw[0], GmfSolAtVertices, bufDbl);
 		
 		//--- Fwy
