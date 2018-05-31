@@ -2,20 +2,24 @@
  * \file numerics_direct_elasticity.cpp
  * \brief This file contains the routines for setting the tangent matrix and residual of a FEM linear elastic structural problem.
  * \author R. Sanchez
- * \version 5.0.0 "Raven"
+ * \version 6.0.1 "Falcon"
  *
- * SU2 Original Developers: Dr. Francisco D. Palacios.
- *                          Dr. Thomas D. Economon.
+ * The current SU2 release has been coordinated by the
+ * SU2 International Developers Society <www.su2devsociety.org>
+ * with selected contributions from the open-source community.
  *
- * SU2 Developers: Prof. Juan J. Alonso's group at Stanford University.
- *                 Prof. Piero Colonna's group at Delft University of Technology.
- *                 Prof. Nicolas R. Gauger's group at Kaiserslautern University of Technology.
- *                 Prof. Alberto Guardone's group at Polytechnic University of Milan.
- *                 Prof. Rafael Palacios' group at Imperial College London.
- *                 Prof. Edwin van der Weide's group at the University of Twente.
- *                 Prof. Vincent Terrapon's group at the University of Liege.
+ * The main research teams contributing to the current release are:
+ *  - Prof. Juan J. Alonso's group at Stanford University.
+ *  - Prof. Piero Colonna's group at Delft University of Technology.
+ *  - Prof. Nicolas R. Gauger's group at Kaiserslautern University of Technology.
+ *  - Prof. Alberto Guardone's group at Polytechnic University of Milan.
+ *  - Prof. Rafael Palacios' group at Imperial College London.
+ *  - Prof. Vincent Terrapon's group at the University of Liege.
+ *  - Prof. Edwin van der Weide's group at the University of Twente.
+ *  - Lab. of New Concepts in Aeronautics at Tech. Institute of Aeronautics.
  *
- * Copyright (C) 2012-2017 SU2, the open-source CFD code.
+ * Copyright 2012-2018, Francisco D. Palacios, Thomas D. Economon,
+ *                      Tim Albring, and the SU2 contributors.
  *
  * SU2 is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -34,7 +38,7 @@
 #include "../include/numerics_structure.hpp"
 #include <limits>
 
-CFEM_Elasticity::CFEM_Elasticity(unsigned short val_nDim, unsigned short val_nVar,
+CFEAElasticity::CFEAElasticity(unsigned short val_nDim, unsigned short val_nVar,
                                    CConfig *config) : CNumerics(val_nDim, val_nVar, config) {
 
   bool body_forces = config->GetDeadLoad();  // Body forces (dead loads).
@@ -47,7 +51,6 @@ CFEM_Elasticity::CFEM_Elasticity(unsigned short val_nDim, unsigned short val_nVa
   Mu = 0.0; Lambda = 0.0; Kappa = 0.0;
 
   /*--- Initialize vector structures for multiple material definition ---*/
-  /*--- TODO: This needs to be changed, to adapt for cases in which the numbers in the config are not the same ---*/
   E_i         = new su2double[config->GetnElasticityMod()];
   for (iVar = 0; iVar < config->GetnElasticityMod(); iVar++)
     E_i[iVar]        = config->GetElasticyMod(iVar);
@@ -160,7 +163,7 @@ CFEM_Elasticity::CFEM_Elasticity(unsigned short val_nDim, unsigned short val_nVa
   }
 }
 
-CFEM_Elasticity::~CFEM_Elasticity(void) {
+CFEAElasticity::~CFEAElasticity(void) {
 
   unsigned short iVar;
 
@@ -204,7 +207,7 @@ CFEM_Elasticity::~CFEM_Elasticity(void) {
 
 }
 
-void CFEM_Elasticity::Compute_Mass_Matrix(CElement *element, CConfig *config) {
+void CFEAElasticity::Compute_Mass_Matrix(CElement *element, CConfig *config) {
 
   /*--- Initialize values for the material model considered ---*/
   SetElement_Properties(element, config);
@@ -255,7 +258,7 @@ void CFEM_Elasticity::Compute_Mass_Matrix(CElement *element, CConfig *config) {
 
 }
 
-void CFEM_Elasticity::Compute_Dead_Load(CElement *element, CConfig *config) {
+void CFEAElasticity::Compute_Dead_Load(CElement *element, CConfig *config) {
 
   /*--- Initialize values for the material model considered ---*/
   SetElement_Properties(element, config);
@@ -272,8 +275,8 @@ void CFEM_Elasticity::Compute_Dead_Load(CElement *element, CConfig *config) {
    */
   su2double g_force[3] = {0.0,0.0,0.0};
 
-  if (nDim == 2) g_force[1] = -1*STANDART_GRAVITY;
-  else if (nDim == 3) g_force[2] = -1*STANDART_GRAVITY;
+  if (nDim == 2) g_force[1] = -1*STANDARD_GRAVITY;
+  else if (nDim == 3) g_force[2] = -1*STANDARD_GRAVITY;
 
   element->clearElement();       /*--- Restarts the element: avoids adding over previous results in other elements and sets initial values to 0--*/
   element->ComputeGrad_Linear();    /*--- Need to compute the gradients to obtain the Jacobian ---*/
@@ -306,7 +309,7 @@ void CFEM_Elasticity::Compute_Dead_Load(CElement *element, CConfig *config) {
 
 }
 
-void CFEM_Elasticity::SetElement_Properties(CElement *element, CConfig *config) {
+void CFEAElasticity::SetElement_Properties(CElement *element, CConfig *config) {
 
   E   = E_i[element->Get_iProp()];
   Nu  = Nu_i[element->Get_iProp()];
@@ -332,21 +335,16 @@ void CFEM_Elasticity::SetElement_Properties(CElement *element, CConfig *config) 
   Lambda = Nu*E/((1.0+Nu)*(1.0-2.0*Nu));
   Kappa  = Lambda + (2/3)*Mu;
 
-//  cout << "YOUNG: " << E << " and Mu " << Mu << endl;
-
 }
 
-void CFEM_Elasticity::ReadDV(CConfig *config) {
+void CFEAElasticity::ReadDV(CConfig *config) {
 
+  int rank = SU2_MPI::GetRank();
+  
   unsigned long index;
 
   string filename;
   ifstream properties_file;
-
-  int rank = MASTER_NODE;
-#ifdef HAVE_MPI
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#endif
 
   /*--- Choose the filename of the design variable ---*/
 

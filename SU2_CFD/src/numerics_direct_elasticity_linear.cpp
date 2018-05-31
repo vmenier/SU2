@@ -2,20 +2,24 @@
  * \file numerics_direct_elasticity_linear.cpp
  * \brief This file contains the routines for setting the FEM elastic structural problem.
  * \author R. Sanchez
- * \version 5.0.0 "Raven"
+ * \version 6.0.1 "Falcon"
  *
- * SU2 Original Developers: Dr. Francisco D. Palacios.
- *                          Dr. Thomas D. Economon.
+ * The current SU2 release has been coordinated by the
+ * SU2 International Developers Society <www.su2devsociety.org>
+ * with selected contributions from the open-source community.
  *
- * SU2 Developers: Prof. Juan J. Alonso's group at Stanford University.
- *                 Prof. Piero Colonna's group at Delft University of Technology.
- *                 Prof. Nicolas R. Gauger's group at Kaiserslautern University of Technology.
- *                 Prof. Alberto Guardone's group at Polytechnic University of Milan.
- *                 Prof. Rafael Palacios' group at Imperial College London.
- *                 Prof. Edwin van der Weide's group at the University of Twente.
- *                 Prof. Vincent Terrapon's group at the University of Liege.
+ * The main research teams contributing to the current release are:
+ *  - Prof. Juan J. Alonso's group at Stanford University.
+ *  - Prof. Piero Colonna's group at Delft University of Technology.
+ *  - Prof. Nicolas R. Gauger's group at Kaiserslautern University of Technology.
+ *  - Prof. Alberto Guardone's group at Polytechnic University of Milan.
+ *  - Prof. Rafael Palacios' group at Imperial College London.
+ *  - Prof. Vincent Terrapon's group at the University of Liege.
+ *  - Prof. Edwin van der Weide's group at the University of Twente.
+ *  - Lab. of New Concepts in Aeronautics at Tech. Institute of Aeronautics.
  *
- * Copyright (C) 2012-2017 SU2, the open-source CFD code.
+ * Copyright 2012-2018, Francisco D. Palacios, Thomas D. Economon,
+ *                      Tim Albring, and the SU2 contributors.
  *
  * SU2 is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -34,8 +38,8 @@
 #include "../include/numerics_structure.hpp"
 #include <limits>
 
-CFEM_LinearElasticity::CFEM_LinearElasticity(unsigned short val_nDim, unsigned short val_nVar,
-                                   CConfig *config) : CFEM_Elasticity(val_nDim, val_nVar, config) {
+CFEALinearElasticity::CFEALinearElasticity(unsigned short val_nDim, unsigned short val_nVar,
+                                   CConfig *config) : CFEAElasticity(val_nDim, val_nVar, config) {
 
   unsigned short iVar;
 
@@ -61,11 +65,11 @@ CFEM_LinearElasticity::CFEM_LinearElasticity(unsigned short val_nDim, unsigned s
 
 }
 
-CFEM_LinearElasticity::~CFEM_LinearElasticity(void) {
+CFEALinearElasticity::~CFEALinearElasticity(void) {
 
 }
 
-void CFEM_LinearElasticity::Compute_Tangent_Matrix(CElement *element, CConfig *config) {
+void CFEALinearElasticity::Compute_Tangent_Matrix(CElement *element, CConfig *config) {
 
   unsigned short iVar, jVar, kVar;
   unsigned short iGauss, nGauss;
@@ -187,7 +191,7 @@ void CFEM_LinearElasticity::Compute_Tangent_Matrix(CElement *element, CConfig *c
 }
 
 
-void CFEM_LinearElasticity::Compute_Constitutive_Matrix(void) {
+void CFEALinearElasticity::Compute_Constitutive_Matrix(void) {
 
      /*--- Compute the D Matrix (for plane stress and 2-D)---*/
 
@@ -223,7 +227,7 @@ void CFEM_LinearElasticity::Compute_Constitutive_Matrix(void) {
 
 }
 
-void CFEM_LinearElasticity::Compute_Averaged_NodalStress(CElement *element, CConfig *config) {
+void CFEALinearElasticity::Compute_Averaged_NodalStress(CElement *element, CConfig *config) {
 
   unsigned short iVar, jVar;
   unsigned short iGauss, nGauss;

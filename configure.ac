@@ -3,20 +3,24 @@
 # \file configure.ac
 # \brief Main file for configuring the autoconf/automake build process
 # \author M. Colonno, T. Economon, F. Palacios, B. Kirk
-# \version 5.0.0 "Raven"
+# \version 6.0.1 "Falcon"
 #
-# SU2 Original Developers: Dr. Francisco D. Palacios.
-#                          Dr. Thomas D. Economon.
+# The current SU2 release has been coordinated by the
+# SU2 International Developers Society <www.su2devsociety.org>
+# with selected contributions from the open-source community.
 #
-# SU2 Developers: Prof. Juan J. Alonso's group at Stanford University.
-#                 Prof. Piero Colonna's group at Delft University of Technology.
-#                 Prof. Nicolas R. Gauger's group at Kaiserslautern University of Technology.
-#                 Prof. Alberto Guardone's group at Polytechnic University of Milan.
-#                 Prof. Rafael Palacios' group at Imperial College London.
-#                 Prof. Edwin van der Weide's group at the University of Twente.
-#                 Prof. Vincent Terrapon's group at the University of Liege.
+# The main research teams contributing to the current release are:
+#  - Prof. Juan J. Alonso's group at Stanford University.
+#  - Prof. Piero Colonna's group at Delft University of Technology.
+#  - Prof. Nicolas R. Gauger's group at Kaiserslautern University of Technology.
+#  - Prof. Alberto Guardone's group at Polytechnic University of Milan.
+#  - Prof. Rafael Palacios' group at Imperial College London.
+#  - Prof. Vincent Terrapon's group at the University of Liege.
+#  - Prof. Edwin van der Weide's group at the University of Twente.
+#  - Lab. of New Concepts in Aeronautics at Tech. Institute of Aeronautics.
 #
-# Copyright (C) 2012-2017 SU2, the open-source CFD code.
+# Copyright 2012-2018, Francisco D. Palacios, Thomas D. Economon,
+#                      Tim Albring, and the SU2 contributors.
 #
 # SU2 is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
@@ -41,7 +45,7 @@
 #
 ##########################
 
-AC_INIT([SU2], [5.0.0], [su2code-dev@lists.stanford.edu],
+AC_INIT([SU2], [6.0.1], [su2code-dev@lists.stanford.edu],
         [SU2], [https://github.com/su2code])
 AC_PREREQ([2.59])
 AC_CONFIG_MACRO_DIR([m4])
@@ -55,6 +59,27 @@ AM_PROG_CC_C_O
 AC_PROG_RANLIB
 AC_PROG_MKDIR_P
 AC_PROG_CXX
+
+# Python configuration
+AM_PATH_PYTHON
+AC_ARG_VAR([PYTHON_INCLUDE], [Include flags for python, bypassing python-config])
+AC_ARG_VAR([PYTHON_CONFIG], [Path to python-config])
+AC_ARG_VAR([PYTHON_LIB], [Python lib flags])
+AC_ARG_VAR([PYTHON_EXEC_PREFIX], [Python exec-prefix])
+AS_IF([test -z "$PYTHON_INCLUDE"], [
+  AS_IF([test -z "$PYTHON_CONFIG"], [
+    AC_PATH_PROGS([PYTHON_CONFIG],
+                  [python$PYTHON_VERSION-config python-config],
+                  [no],
+                  [`dirname $PYTHON`])
+    AS_IF([test "$PYTHON_CONFIG" = no], [AC_MSG_ERROR([cannot find python-config for $PYTHON.])])
+  ])
+  AC_MSG_CHECKING([python include flags])
+  PYTHON_INCLUDE=`$PYTHON_CONFIG --includes`
+  PYTHON_LIB=`$PYTHON_CONFIG --libs`
+  PYTHON_EXEC_PREFIX=`$PYTHON_CONFIG --exec-prefix`
+  AC_MSG_RESULT([$PYTHON_INCLUDE])
+])
 
 #PKG_PROG_PKG_CONFIG
 
@@ -119,6 +144,9 @@ AC_ARG_ENABLE(DOT,
 AC_ARG_ENABLE(MSH,
    	AS_HELP_STRING([--disable-MSH], [build the SU2_MSH executable (default = yes)]),
 	[build_MSH=$enableval], [build_MSH="yes"])
+AC_ARG_ENABLE(AMG,
+   	AS_HELP_STRING([--disable-AMG], [build the SU2_AMG executable (default = yes)]),
+	[build_AMG=$enableval], [build_AMG="yes"])
 AC_ARG_ENABLE(DEF,
    	AS_HELP_STRING([--disable-DEF], [build the SU2_DEF executable (default = yes)]),
 	[build_DEF=$enableval], [build_DEF="yes"])
@@ -163,6 +191,18 @@ else
 fi
 AM_CONDITIONAL(BUILD_TECIO, test x$enabletecio = xyes)
 AC_CONFIG_FILES([externals/tecio/Makefile])
+
+
+# Inria
+CONFIGURE_INRIA
+if (test $enableinria = yes); then
+  su2_externals_INCLUDES="-DHAVE_INRIA $INRIA_INCLUDE $su2_externals_INCLUDES"
+  su2_externals_LIBS="$INRIA_LIB $su2_externals_LIBS"
+else
+  su2_externals_INCLUDES="$su2_externals_INCLUDES"
+fi
+AM_CONDITIONAL(BUILD_INRIA, test x$enableinria = xyes)
+AC_CONFIG_FILES([externals/inria/Makefile])
 
 # Metis
 CONFIGURE_METIS
@@ -470,9 +510,6 @@ AC_SUBST([LAPACK_LD])
 
 build_PY=yes
 
-# Complex type
-COMPLEX_CXX="-std=gnu++11 -DCOMPLEX_TYPE"
-
 # direct differentation type
 build_DIRECTDIFF=no
 DIRECTDIFF_CXX=
@@ -481,16 +518,7 @@ DIRECTDIFF_LIBS=
 build_REVERSE=no
 REVERSE_CXX=
 FORWARD_CXX=
-#CONFIGURE_ADOLC
 CONFIGURE_CODI
-
-if test $build_COMPLEX != "no"
-then 
-   DIRECTDIFF_CXX=$COMPLEX_CXX
-   build_DIRECTDIFF=yes
-   build_REVERSE=no
-   build_NORMAL=no
-fi
 
 AC_SUBST([DIRECTDIFF_CXX])
 AC_SUBST([DIRECTDIFF_LIBS])
@@ -504,10 +532,12 @@ if test $build_NORMAL == "no"
 then
   build_DOT=no
   build_MSH=no
+	build_AMG=no
   build_DEF=no
   build_SOL=no
   build_GEO=no
   build_PY=no
+  build_PY_WRAPPER=no
 fi
 
 if test $build_REVERSE == "yes"
@@ -519,6 +549,7 @@ fi
 AM_CONDITIONAL([BUILD_CFD],[test $build_CFD != "no"])
 AM_CONDITIONAL([BUILD_DOT],[test $build_DOT != "no"])
 AM_CONDITIONAL([BUILD_MSH],[test $build_MSH != "no"])
+AM_CONDITIONAL([BUILD_AMG],[test $build_AMG != "no"])
 AM_CONDITIONAL([BUILD_DEF],[test $build_DEF != "no"])
 AM_CONDITIONAL([BUILD_SOL],[test $build_SOL != "no"])
 AM_CONDITIONAL([BUILD_GEO],[test $build_GEO != "no"])
@@ -533,6 +564,7 @@ AC_OUTPUT(Makefile \
 	SU2_CFD/obj/Makefile \
 	SU2_DOT/obj/Makefile \
 	SU2_MSH/obj/Makefile \
+	SU2_AMG/obj/Makefile \
 	SU2_DEF/obj/Makefile \
 	SU2_SOL/obj/Makefile \
 	SU2_GEO/obj/Makefile \
@@ -547,24 +579,27 @@ AC_MSG_RESULT([
 
 -------------------------------------------------------------------------
 |    ___ _   _ ___                                                      |
-|   / __| | | |_  )   Release 5.0.0 'Raven'                             |
+|   / __| | | |_  )   Release 6.0.1 'Falcon'                            |
 |   \\__ \\ |_| |/ /                                                      |
 |   |___/\\___//___|   Suite                                             |
 |                                                                       |
 -------------------------------------------------------------------------
-| SU2 Original Developers: Dr. Francisco D. Palacios.                   |
-|                          Dr. Thomas D. Economon.                      |
+| The current SU2 release has been coordinated by the                   |
+| SU2 International Developers Society <www.su2devsociety.org>          |
+| with selected contributions from the open-source community.           |
 -------------------------------------------------------------------------
-| SU2 Developers:                                                       |
+| The main research teams contributing to the current release are:      |
 | - Prof. Juan J. Alonso's group at Stanford University.                |
 | - Prof. Piero Colonna's group at Delft University of Technology.      |
 | - Prof. Nicolas R. Gauger's group at Kaiserslautern U. of Technology. |
 | - Prof. Alberto Guardone's group at Polytechnic University of Milan.  |
 | - Prof. Rafael Palacios' group at Imperial College London.            |
-| - Prof. Edwin van der Weide's group at the University of Twente.      |
 | - Prof. Vincent Terrapon's group at the University of Liege.          |
+| - Prof. Edwin van der Weide's group at the University of Twente.      |
+| - Lab. of New Concepts in Aeronautics at Tech. Inst. of Aeronautics.  |
 -------------------------------------------------------------------------
-| Copyright (C) 2012-2017 SU2, the open-source CFD code.                |
+| Copyright 2012-2018, Francisco D. Palacios, Thomas D. Economon,       |
+|                      Tim Albring, and the SU2 contributors.           |
 |                                                                       |
 | SU2 is free software; you can redistribute it and/or                  |
 | modify it under the terms of the GNU Lesser General Public            |
@@ -613,6 +648,7 @@ Build Configuration Summary:
     Build SU2_CFD:        $build_CFD
     Build SU2_DOT:        $build_DOT
     Build SU2_MSH:        $build_MSH
+    Build SU2_AMG:        $build_AMG
     Build SU2_DEF:        $build_DEF
     Build SU2_SOL:        $build_SOL
     Build SU2_GEO:        $build_GEO

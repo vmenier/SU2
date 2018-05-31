@@ -5,20 +5,24 @@
  *        <i>numerics_convective.cpp</i>, <i>numerics_viscous.cpp</i>, and
  *        <i>numerics_source.cpp</i> files.
  * \author F. Palacios, T. Economon
- * \version 5.0.0 "Raven"
+ * \version 6.0.1 "Falcon"
  *
- * SU2 Original Developers: Dr. Francisco D. Palacios.
- *                          Dr. Thomas D. Economon.
+ * The current SU2 release has been coordinated by the
+ * SU2 International Developers Society <www.su2devsociety.org>
+ * with selected contributions from the open-source community.
  *
- * SU2 Developers: Prof. Juan J. Alonso's group at Stanford University.
- *                 Prof. Piero Colonna's group at Delft University of Technology.
- *                 Prof. Nicolas R. Gauger's group at Kaiserslautern University of Technology.
- *                 Prof. Alberto Guardone's group at Polytechnic University of Milan.
- *                 Prof. Rafael Palacios' group at Imperial College London.
- *                 Prof. Edwin van der Weide's group at the University of Twente.
- *                 Prof. Vincent Terrapon's group at the University of Liege.
+ * The main research teams contributing to the current release are:
+ *  - Prof. Juan J. Alonso's group at Stanford University.
+ *  - Prof. Piero Colonna's group at Delft University of Technology.
+ *  - Prof. Nicolas R. Gauger's group at Kaiserslautern University of Technology.
+ *  - Prof. Alberto Guardone's group at Polytechnic University of Milan.
+ *  - Prof. Rafael Palacios' group at Imperial College London.
+ *  - Prof. Vincent Terrapon's group at the University of Liege.
+ *  - Prof. Edwin van der Weide's group at the University of Twente.
+ *  - Lab. of New Concepts in Aeronautics at Tech. Institute of Aeronautics.
  *
- * Copyright (C) 2012-2017 SU2, the open-source CFD code.
+ * Copyright 2012-2018, Francisco D. Palacios, Thomas D. Economon,
+ *                      Tim Albring, and the SU2 contributors.
  *
  * SU2 is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -54,7 +58,6 @@ using namespace std;
  * \class CNumerics
  * \brief Class for defining the numerical methods.
  * \author F. Palacios, T. Economon
- * \version 5.0.0 "Raven"
  */
 class CNumerics {
 protected:
@@ -86,7 +89,9 @@ public:
   su2double Thermal_Conductivity_i, /*!< \brief Thermal conductivity at point i. */
   Thermal_Conductivity_j, /*!< \brief Thermal conductivity at point j. */
   Thermal_Conductivity_ve_i, /*!< \brief Thermal conductivity at point i. */
-  Thermal_Conductivity_ve_j; /*!< \brief Thermal conductivity at point j. */
+  Thermal_Conductivity_ve_j, /*!< \brief Thermal conductivity at point j. */
+  Thermal_Diffusivity_i, /*!< \brief Thermal diffusivity at point i. */
+  Thermal_Diffusivity_j; /*!< \brief Thermal diffusivity at point j. */
   su2double Cp_i, /*!< \brief Cp at point i. */
   Cp_j;         /*!< \brief Cp at point j. */
   su2double *Theta_v; /*!< \brief Characteristic vibrational temperature */
@@ -198,14 +203,16 @@ public:
   *WindGustDer_j;      /*!< \brief Wind gust derivatives at point j. */
   su2double *Vorticity_i, *Vorticity_j;  /*!< \brief Vorticity. */
   su2double StrainMag_i, StrainMag_j;   /*!< \brief Strain rate magnitude. */
-  
+  su2double Dissipation_i, Dissipation_j;
+  su2double Dissipation_ij;
+    
   su2double *l, *m;
-
+	
   su2double **MeanReynoldsStress;
   su2double **MeanPerturbedRSM;
   bool using_uq;
   su2double PerturbedStrainMag;
-  
+
   /*!
    * \brief Constructor of the class.
    */
@@ -293,7 +300,7 @@ public:
    * \param[in] val_u_j - Value of the conservative variable at point j.
    */
   void SetConservative_ZeroOrder(su2double *val_u_i, su2double *val_u_j);
-  
+
   /*!
    * \brief Set the value of the primitive variables.
    * \param[in] val_v_i - Value of the primitive variable at point i.
@@ -486,6 +493,14 @@ public:
   void SetThermalConductivity_ve(su2double val_thermal_conductivity_ve_i,
                                  su2double val_thermal_conductivity_ve_j);
   
+  /*!
+   * \brief Set the thermal diffusivity (translational/rotational)
+   * \param[in] val_thermal_diffusivity_i - Value of the thermal diffusivity at point i.
+   * \param[in] val_thermal_diffusivity_j - Value of the thermal diffusivity at point j.
+   * \param[in] iSpecies - Value of the species.
+   */
+  void SetThermalDiffusivity(su2double val_thermal_diffusivity_i,
+                              su2double val_thermal_diffusivity_j);
   /*!
    * \brief Set the eddy viscosity.
    * \param[in] val_eddy_viscosity_i - Value of the eddy viscosity at point i.
@@ -715,6 +730,18 @@ public:
   void SetdTvedU(su2double *val_dTvedU_i, su2double *val_dTvedU_j);
   
   /*!
+  * \brief Sets the values of the roe dissipation.
+  * \param[in] diss_i - Dissipation value at node i
+  * \param[in] diss_j - Dissipation value at node j
+  */
+  void SetDissipation(su2double diss_i, su2double diss_j);
+  
+  /*!
+  * \brief Get the final Roe dissipation factor.
+  */
+  su2double GetDissipation();
+  
+  /*!
    * \brief Get the inviscid fluxes.
    * \param[in] val_density - Value of the density.
    * \param[in] val_velocity - Value of the velocity.
@@ -759,6 +786,7 @@ public:
    */
   void GetInviscidArtCompProjFlux(su2double *val_density, su2double *val_velocity,
                                   su2double *val_pressure, su2double *val_betainc2,
+                                  su2double *val_enthalpy,
                                   su2double *val_normal, su2double *val_Proj_Flux);
   
   /*!
@@ -776,7 +804,8 @@ public:
   void GetViscousProjFlux(su2double *val_primvar, su2double **val_gradprimvar,
                           su2double val_turb_ke, su2double *val_normal,
                           su2double val_laminar_viscosity,
-                          su2double val_eddy_viscosity);
+                          su2double val_eddy_viscosity,
+                          bool val_qcr);
   /*!
    * \brief Compute the projection of the viscous fluxes into a direction for general fluid model.
    * \param[in] val_primvar - Primitive variables.
@@ -819,16 +848,21 @@ public:
    * \brief Compute the projection of the viscous fluxes into a direction (artificial compresibility method).
    * \param[in] val_primvar - Primitive variables.
    * \param[in] val_gradprimvar - Gradient of the primitive variables.
+   * \param[in] val_turb_ke - Turbulent kinetic energy
    * \param[in] val_normal - Normal vector, the norm of the vector is the area of the face.
    * \param[in] val_laminar_viscosity - Laminar viscosity.
    * \param[in] val_eddy_viscosity - Eddy viscosity.
+   * \param[in] val_thermal_conductivity - Thermal conductivity.
    */
   
-  void GetViscousArtCompProjFlux(su2double **val_gradprimvar,
+  void GetViscousArtCompProjFlux(su2double *val_primvar,
+                                 su2double **val_gradprimvar,
                                  su2double *val_normal,
                                  su2double val_laminar_viscosity,
-                                 su2double val_eddy_viscosity);
-  
+                                 su2double val_eddy_viscosity,
+                                 su2double val_turb_ke,
+                                 su2double val_thermal_conductivity);
+
   /*!
    * \brief Compute the projection of the inviscid Jacobian matrices.
    * \param[in] val_velocity Pointer to the velocity.
@@ -854,7 +888,61 @@ public:
                                  su2double *val_betainc2, su2double *val_normal,
                                  su2double val_scale,
                                  su2double **val_Proj_Jac_tensor);
-  
+
+  /*!
+   * \brief Compute the projection of the inviscid Jacobian matrices (overload for low speed preconditioner version).
+   * \param[in] val_density - Value of the density.
+   * \param[in] val_velocity - Pointer to the velocity.
+   * \param[in] val_betainc2 - Value of the artificial compresibility factor.
+   * \param[in] val_cp - Value of the specific heat at constant pressure.
+   * \param[in] val_temperature - Value of the temperature.
+   * \param[in] val_dRhodT - Value of the derivative of density w.r.t. temperature.
+   * \param[in] val_normal - Normal vector, the norm of the vector is the area of the face.
+   * \param[in] val_scale - Scale of the projection.
+   * \param[out] val_Proj_Jac_tensor - Pointer to the projected inviscid Jacobian.
+   */
+  void GetInviscidArtCompProjJac(su2double *val_density,
+                                 su2double *val_velocity,
+                                 su2double *val_betainc2,
+                                 su2double *val_cp,
+                                 su2double *val_temperature,
+                                 su2double *val_dRhodT,
+                                 su2double *val_normal,
+                                 su2double val_scale,
+                                 su2double **val_Proj_Jac_Tensor);
+
+  /*!
+   * \brief Compute the low speed preconditioning matrix.
+   * \param[in] val_density - Value of the density.
+   * \param[in] val_velocity - Pointer to the velocity.
+   * \param[in] val_betainc2 - Value of the artificial compresibility factor.
+   * \param[in] val_cp - Value of the specific heat at constant pressure.
+   * \param[in] val_temperature - Value of the temperature.
+   * \param[in] val_dRhodT - Value of the derivative of density w.r.t. temperature.
+   * \param[out] val_Precon - Pointer to the preconditioning matrix.
+   */
+  void GetPreconditioner(su2double *val_density,
+                         su2double *val_velocity,
+                         su2double *val_betainc2,
+                         su2double *val_cp,
+                         su2double *val_temperature,
+                         su2double *val_drhodt,
+                         su2double **val_Precon);
+
+  /*!
+   * \brief Compute the projection of the preconditioned inviscid Jacobian matrices.
+   * \param[in] val_density - Value of the density.
+   * \param[in] val_velocity - Pointer to the velocity.
+   * \param[in] val_betainc2 - Value of the artificial compresibility factor.
+   * \param[in] val_normal - Normal vector, the norm of the vector is the area of the face.
+   * \param[out] val_Proj_Jac_tensor - Pointer to the projected inviscid Jacobian.
+   */
+  void GetPreconditionedProjJac(su2double *val_density,
+                                su2double *val_velocity,
+                                su2double *val_betainc2,
+                                su2double *val_normal,
+                                su2double **val_Proj_Jac_Tensor);
+
   /*!
    * \brief Compute the projection of the inviscid Jacobian matrices for general fluid model.
    * \param[in] val_velocity Pointer to the velocity.
@@ -1059,19 +1147,7 @@ public:
 	 * \param[out] val_absPeJac - Pointer to the Preconditioned Jacobian matrix.
 	 */
 	void GetPrecondJacobian(su2double Beta2, su2double r_hat, su2double s_hat, su2double t_hat, su2double rB2a2, su2double* val_Lambda, su2double* val_normal, su2double** val_absPeJac);
-    
-	/*!
-	 * \brief Computation of the matrix P (artificial compresibility), this matrix diagonalize the conservative Jacobians in
-	 *        the form $P^{-1}(A.Normal)P=Lambda$.
-	 * \param[in] val_density - Value of the density.
-	 * \param[in] val_velocity - Value of the velocity.
-	 * \param[in] val_betainv2 - Value of the compresibility factor.
-	 * \param[in] val_normal - Normal vector, the norm of the vector is the area of the face.
-	 * \param[out] val_p_tensor - Pointer to the P matrix.
-	 */
-	void GetPArtCompMatrix(su2double *val_density, su2double *val_velocity,
-                         su2double *val_betainv2, su2double *val_normal,
-                         su2double **val_p_tensor);
+
   
   /*!
    * \brief Computation of the matrix P^{-1}, this matrix diagonalize the conservative Jacobians
@@ -1099,19 +1175,6 @@ public:
   void GetPMatrix_inv(su2double *val_density, su2double *val_velocity,
                       su2double *val_soundspeed, su2double *val_normal,
                       su2double **val_invp_tensor);
-
-  /*!
-   * \brief Computation of the matrix P^{-1} (artificial compresibility), this matrix diagonalize the conservative Jacobians
-   *        in the form $P^{-1}(A.Normal)P=Lambda$.
-   * \param[in] val_density - Value of the density.
-   * \param[in] val_velocity - Value of the velocity.
-   * \param[in] val_betainv2 - Value of the compresibility factor.
-   * \param[in] val_normal - Normal vector, the norm of the vector is the area of the face.
-   * \param[out] val_invp_tensor - Pointer to inverse of the P matrix.
-   */
-  void GetPArtCompMatrix_inv(su2double *val_density, su2double *val_velocity,
-                             su2double *val_betainv2, su2double *val_normal,
-                             su2double **val_invp_tensor);
   
   /*!
    * \brief Compute viscous residual and jacobian.
@@ -1504,6 +1567,7 @@ public:
    */
   void CreateBasis(su2double *val_Normal);
 
+
   /*!
    * \brief Decomposes the symmetric matrix A_ij, into eigenvectors and eigenvalues
    * \param A_i: symmetric matrix to be decomposed
@@ -1535,6 +1599,13 @@ public:
    * \param e
    */
   void tql2(su2double **V, su2double *d, su2double *e);
+  
+  
+  void SetRoe_Dissipation(su2double *Coord_i, su2double *Coord_j,
+                          const su2double Dissipation_i, const su2double Dissipation_j,
+                          const su2double Sensor_i, const su2double Sensor_j,
+                          su2double& Dissipation_ij, CConfig *config);
+  
 
 };
 
@@ -1543,7 +1614,6 @@ public:
  * \brief Class for centered scheme - CUSP.
  * \ingroup ConvDiscr
  * \author F. Palacios
- * \version 5.0.0 "Raven"
  */
 class CUpwCUSP_Flow : public CNumerics {
   
@@ -1593,11 +1663,10 @@ public:
  * \brief Class for solving an approximate Riemann solver of Roe for the flow equations.
  * \ingroup ConvDiscr
  * \author A. Bueno, F. Palacios
- * \version 5.0.0 "Raven"
  */
 class CUpwRoe_Flow : public CNumerics {
 private:
-  bool implicit, grid_movement;
+  bool implicit, grid_movement, roe_low_dissipation;
   su2double *Diff_U;
   su2double *Velocity_i, *Velocity_j, *RoeVelocity;
   su2double *ProjFlux_i, *ProjFlux_j;
@@ -1607,7 +1676,7 @@ private:
   su2double sq_vel, Proj_ModJac_Tensor_ij, Density_i, Energy_i, SoundSpeed_i, Pressure_i, Enthalpy_i,
   Density_j, Energy_j, SoundSpeed_j, Pressure_j, Enthalpy_j, R, RoeDensity, RoeEnthalpy, RoeSoundSpeed,
   ProjVelocity, ProjVelocity_i, ProjVelocity_j, RoeSoundSpeed2, kappa;
-  unsigned short iDim, iVar, jVar, kVar;
+  unsigned short iVar, jVar, kVar, iDim;
   
 public:
   
@@ -1617,7 +1686,7 @@ public:
    * \param[in] val_nVar - Number of variables of the problem.
    * \param[in] config - Definition of the particular problem.
    */
-  CUpwRoe_Flow(unsigned short val_nDim, unsigned short val_nVar, CConfig *config);
+  CUpwRoe_Flow(unsigned short val_nDim, unsigned short val_nVar, CConfig *config, bool val_low_dissipation);
   
   /*!
    * \brief Destructor of the class.
@@ -1632,6 +1701,7 @@ public:
    * \param[in] config - Definition of the particular problem.
    */
   void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, su2double **val_Jacobian_j, CConfig *config);
+  
 };
 
 
@@ -1640,7 +1710,6 @@ public:
  * \brief Class for solving an approximate Riemann solver of Roe for the flow equations for a general fluid model.
  * \ingroup ConvDiscr
  * \author S.Vitale, G.Gori, M.Pini
- * \version 5.0.0 "Raven"
  */
 class CUpwGeneralRoe_Flow : public CNumerics {
 private:
@@ -1695,13 +1764,103 @@ public:
   void ComputeRoeAverage();
 };
 
+/*!
+ * \class CUpwL2Roe_Flow
+ * \brief Class for solving an approximate Riemann solver of L2Roe for the flow equations.
+ * \ingroup ConvDiscr
+ * \author E. Molina, A. Bueno, F. Palacios
+ * \version 4.1.2 "Cardinal"
+ */
+class CUpwL2Roe_Flow : public CNumerics {
+private:
+    bool implicit, grid_movement;
+    su2double *Diff_U;
+    su2double *Velocity_i, *Velocity_j, *RoeVelocity;
+    su2double *ProjFlux_i, *ProjFlux_j;
+    su2double *delta_wave, *delta_vel;
+    su2double *Lambda, *Epsilon, MaxLambda, Delta;
+    su2double **P_Tensor, **invP_Tensor;
+    su2double sq_vel, Proj_ModJac_Tensor_ij, Density_i, Energy_i, SoundSpeed_i, Pressure_i, Enthalpy_i,
+    Density_j, Energy_j, SoundSpeed_j, Pressure_j, Enthalpy_j, R, RoeDensity, RoeEnthalpy, RoeSoundSpeed,
+    ProjVelocity, ProjVelocity_i, ProjVelocity_j, proj_delta_vel, delta_p, delta_rho, RoeSoundSpeed2, kappa;
+    unsigned short iDim, iVar, jVar, kVar;
+    
+public:
+    
+    /*!
+     * \brief Constructor of the class.
+     * \param[in] val_nDim - Number of dimensions of the problem.
+     * \param[in] val_nVar - Number of variables of the problem.
+     * \param[in] config - Definition of the particular problem.
+     */
+    CUpwL2Roe_Flow(unsigned short val_nDim, unsigned short val_nVar, CConfig *config);
+    
+    /*!
+     * \brief Destructor of the class.
+     */
+    ~CUpwL2Roe_Flow(void);
+    
+    /*!
+     * \brief Compute the Roe's flux between two nodes i and j.
+     * \param[out] val_residual - Pointer to the total residual.
+     * \param[out] val_Jacobian_i - Jacobian of the numerical method at node i (implicit computation).
+     * \param[out] val_Jacobian_j - Jacobian of the numerical method at node j (implicit computation).
+     * \param[in] config - Definition of the particular problem.
+     */
+    void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, su2double **val_Jacobian_j, CConfig *config);
+};
+
+/*!
+ * \class CUpwLMRoe_Flow
+ * \brief Class for solving an approximate Riemann solver of LMRoe for the flow equations.
+ * \ingroup ConvDiscr
+ * \author E. Molina, A. Bueno, F. Palacios
+ * \version 4.1.2 "Cardinal"
+ */
+class CUpwLMRoe_Flow : public CNumerics {
+private:
+    bool implicit, grid_movement;
+    su2double *Diff_U;
+    su2double *Velocity_i, *Velocity_j, *RoeVelocity;
+    su2double *ProjFlux_i, *ProjFlux_j;
+    su2double *delta_wave, *delta_vel;
+    su2double *Lambda, *Epsilon, MaxLambda, Delta;
+    su2double **P_Tensor, **invP_Tensor;
+    su2double sq_vel, Proj_ModJac_Tensor_ij, Density_i, Energy_i, SoundSpeed_i, Pressure_i, Enthalpy_i,
+    Density_j, Energy_j, SoundSpeed_j, Pressure_j, Enthalpy_j, R, RoeDensity, RoeEnthalpy, RoeSoundSpeed,
+    ProjVelocity, ProjVelocity_i, ProjVelocity_j, proj_delta_vel, delta_p, delta_rho, RoeSoundSpeed2, kappa;
+    unsigned short iDim, iVar, jVar, kVar;
+    
+public:
+    
+    /*!
+     * \brief Constructor of the class.
+     * \param[in] val_nDim - Number of dimensions of the problem.
+     * \param[in] val_nVar - Number of variables of the problem.
+     * \param[in] config - Definition of the particular problem.
+     */
+    CUpwLMRoe_Flow(unsigned short val_nDim, unsigned short val_nVar, CConfig *config);
+    
+    /*!
+     * \brief Destructor of the class.
+     */
+    ~CUpwLMRoe_Flow(void);
+    
+    /*!
+     * \brief Compute the Roe's flux between two nodes i and j.
+     * \param[out] val_residual - Pointer to the total residual.
+     * \param[out] val_Jacobian_i - Jacobian of the numerical method at node i (implicit computation).
+     * \param[out] val_Jacobian_j - Jacobian of the numerical method at node j (implicit computation).
+     * \param[in] config - Definition of the particular problem.
+     */
+    void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, su2double **val_Jacobian_j, CConfig *config);
+};
 
 /*!
  * \class CUpwMSW_Flow
  * \brief Class for solving a flux-vector splitting method by Steger & Warming, modified version.
  * \ingroup ConvDiscr
  * \author S. Copeland
- * \version 5.0.0 "Raven"
  */
 class CUpwMSW_Flow : public CNumerics {
 private:
@@ -1746,7 +1905,6 @@ public:
  * \brief Class for solving an approximate Riemann solver of Roe with Turkel Preconditioning for the flow equations.
  * \ingroup ConvDiscr
  * \author A. K. Lonkar
- * \version 5.0.0 "Raven"
  */
 class CUpwTurkel_Flow : public CNumerics {
 private:
@@ -1798,24 +1956,26 @@ public:
 
 /*!
  * \class CUpwArtComp_Flow
- * \brief Class for solving an approximate Riemann solver of Roe for the incompressible flow equations.
+ * \brief Class for solving an upwind method for the incompressible flow equations.
  * \ingroup ConvDiscr
- * \author F. Palacios
- * \version 5.0.0 "Raven"
+ * \author F. Palacios, T. Economon
  */
 class CUpwArtComp_Flow : public CNumerics {
 private:
-  bool implicit;
-  bool gravity;
-  su2double Froude;
-  su2double *Diff_U;
+  bool implicit, /*!< \brief Implicit calculation. */
+  grid_movement, /*!< \brief Modification for grid movement. */
+  variable_density, /*!< \brief Variable density incompressible flows. */
+  energy; /*!< \brief computation with the energy equation. */
+  su2double *Diff_V;
   su2double *Velocity_i, *Velocity_j, *MeanVelocity;
   su2double *ProjFlux_i, *ProjFlux_j;
   su2double *Lambda, *Epsilon;
-  su2double **P_Tensor, **invP_Tensor;
+  su2double **Precon, **invPrecon_A;
   su2double Proj_ModJac_Tensor_ij, Pressure_i,
-  Pressure_j, MeanDensity, MeanSoundSpeed, MeanPressure, MeanBetaInc2,
-  ProjVelocity;
+  Pressure_j, ProjVelocity,
+  MeandRhodT, dRhodT_i, dRhodT_j, /*!< \brief Derivative of density w.r.t. temperature (variable density flows). */
+  Temperature_i, Temperature_j,   /*!< \brief Temperature at node 0 and 1. */
+  MeanDensity, MeanPressure, MeanSoundSpeed, MeanBetaInc2, MeanEnthalpy, MeanCp, MeanTemperature; /*!< \brief Mean values of primitive variables. */
   unsigned short iDim, iVar, jVar, kVar;
   
 public:
@@ -1834,13 +1994,14 @@ public:
   ~CUpwArtComp_Flow(void);
   
   /*!
-   * \brief Compute the Roe's flux between two nodes i and j.
-   * \param[out] val_residual - Pointer to the total residual.
+   * \brief Compute the upwind flux between two nodes i and j.
+   * \param[out] val_residual - Pointer to the residual array.
    * \param[out] val_Jacobian_i - Jacobian of the numerical method at node i (implicit computation).
    * \param[out] val_Jacobian_j - Jacobian of the numerical method at node j (implicit computation).
    * \param[in] config - Definition of the particular problem.
    */
-  void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, su2double **val_Jacobian_j, CConfig *config);
+  void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, su2double **val_Jacobian_j,
+                       CConfig *config);
 };
 
 /*!
@@ -1849,7 +2010,6 @@ public:
  *        for the adjoint flow equations.
  * \ingroup ConvDiscr
  * \author F. Palacios
- * \version 5.0.0 "Raven"
  */
 class CUpwRoe_AdjFlow : public CNumerics {
 private:
@@ -1895,56 +2055,10 @@ public:
 };
 
 /*!
- * \class CUpwRoeArtComp_AdjFlow
- * \brief Class for solving an approximate Riemann solver of Roe
- *        for the adjoint flow equations.
- * \ingroup ConvDiscr
- * \author F. Palacios
- * \version 5.0.0 "Raven"
- */
-class CUpwRoeArtComp_AdjFlow : public CNumerics {
-private:
-  su2double Area, *Lambda, *Velocity_i, *Velocity_j, **Proj_Jac_Tensor_i, **Proj_Jac_Tensor_j,
-  Proj_ModJac_Tensor_ij, **Proj_ModJac_Tensor, **P_Tensor, **invP_Tensor, MeanDensity,
-  MeanPressure, MeanBetaInc2, ProjVelocity, *MeanVelocity, MeanSoundSpeed;
-  unsigned short iDim, iVar, jVar, kVar;
-  bool implicit;
-  
-public:
-  
-  /*!
-   * \brief Constructor of the class.
-   * \param[in] val_nDim - Number of dimensions of the problem.
-   * \param[in] val_nVar - Number of variables of the problem.
-   * \param[in] config - Definition of the particular problem.
-   */
-  CUpwRoeArtComp_AdjFlow(unsigned short val_nDim, unsigned short val_nVar, CConfig *config);
-  
-  /*!
-   * \brief Destructor of the class.
-   */
-  ~CUpwRoeArtComp_AdjFlow(void);
-  
-  /*!
-   * \brief Compute the adjoint Roe's flux between two nodes i and j.
-   * \param[out] val_residual_i - Pointer to the total residual at point i.
-   * \param[out] val_residual_j - Pointer to the total residual at point j.
-   * \param[out] val_Jacobian_ii - Jacobian of the numerical method at node i (implicit computation) from node i.
-   * \param[out] val_Jacobian_ij - Jacobian of the numerical method at node i (implicit computation) from node j.
-   * \param[out] val_Jacobian_ji - Jacobian of the numerical method at node j (implicit computation) from node i.
-   * \param[out] val_Jacobian_jj - Jacobian of the numerical method at node j (implicit computation) from node j.
-   * \param[in] config - Definition of the particular problem.
-   */
-  void ComputeResidual(su2double *val_residual_i, su2double *val_residual_j, su2double **val_Jacobian_ii,
-                       su2double **val_Jacobian_ij, su2double **val_Jacobian_ji, su2double **val_Jacobian_jj, CConfig *config);
-};
-
-/*!
  * \class CUpwAUSM_Flow
  * \brief Class for solving an approximate Riemann AUSM.
  * \ingroup ConvDiscr
  * \author F. Palacios
- * \version 5.0.0 "Raven"
  */
 class CUpwAUSM_Flow : public CNumerics {
 private:
@@ -1975,6 +2089,100 @@ public:
    * \brief Destructor of the class.
    */
   ~CUpwAUSM_Flow(void);
+  
+  /*!
+   * \brief Compute the Roe's flux between two nodes i and j.
+   * \param[out] val_residual - Pointer to the total residual.
+   * \param[out] val_Jacobian_i - Jacobian of the numerical method at node i (implicit computation).
+   * \param[out] val_Jacobian_j - Jacobian of the numerical method at node j (implicit computation).
+   * \param[in] config - Definition of the particular problem.
+   */
+  void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, su2double **val_Jacobian_j, CConfig *config);
+};
+
+/*!
+ * \class CUpwSLAU_Flow
+ * \brief Class for solving the Low-Dissipation AUSM.
+ * \ingroup ConvDiscr
+ * \author E. Molina
+ */
+class CUpwSLAU_Flow : public CNumerics {
+private:
+  bool implicit, slau_low_diss;
+  su2double *Diff_U;
+  su2double *Velocity_i, *Velocity_j, *RoeVelocity;
+  su2double *ProjFlux_i, *ProjFlux_j;
+  su2double *delta_wave, *delta_vel;
+  su2double *Lambda, *Epsilon;
+  su2double **P_Tensor, **invP_Tensor;
+  su2double sq_vel, Proj_ModJac_Tensor_ij, Density_i, Energy_i, SoundSpeed_i, Pressure_i, Enthalpy_i,
+  Density_j, Energy_j, SoundSpeed_j, Pressure_j, Enthalpy_j, R, RoeDensity, RoeEnthalpy, RoeSoundSpeed,
+  ProjVelocity, ProjVelocity_i, ProjVelocity_j;
+  unsigned short iDim, iVar, jVar, kVar;
+  su2double mL, mR, mF, pF;
+  su2double aF, Vn_Mag, aux_slau, Mach_tilde, Chi, f_rho, BetaL, BetaR, Vn_MagL, Vn_MagR;
+  
+public:
+  
+  /*!
+   * \brief Constructor of the class.
+   * \param[in] val_nDim - Number of dimensions of the problem.
+   * \param[in] val_nVar - Number of variables of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
+  CUpwSLAU_Flow(unsigned short val_nDim, unsigned short val_nVar, CConfig *config, bool val_low_dissipation);
+  
+  /*!
+   * \brief Destructor of the class.
+   */
+  ~CUpwSLAU_Flow(void);
+  
+  /*!
+   * \brief Compute the Roe's flux between two nodes i and j.
+   * \param[out] val_residual - Pointer to the total residual.
+   * \param[out] val_Jacobian_i - Jacobian of the numerical method at node i (implicit computation).
+   * \param[out] val_Jacobian_j - Jacobian of the numerical method at node j (implicit computation).
+   * \param[in] config - Definition of the particular problem.
+   */
+  void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, su2double **val_Jacobian_j, CConfig *config);
+};
+
+/*!
+ * \class CUpwSLAU2_Flow
+ * \brief Class for solving the Simple Low-Dissipation AUSM 2.
+ * \ingroup ConvDiscr
+ * \author E. Molina
+ */
+class CUpwSLAU2_Flow : public CNumerics {
+private:
+  bool implicit, slau_low_dissipation;
+  su2double *Diff_U;
+  su2double *Velocity_i, *Velocity_j, *RoeVelocity;
+  su2double *ProjFlux_i, *ProjFlux_j;
+  su2double *delta_wave, *delta_vel;
+  su2double *Lambda, *Epsilon;
+  su2double **P_Tensor, **invP_Tensor;
+  su2double sq_vel, Proj_ModJac_Tensor_ij, Density_i, Energy_i, SoundSpeed_i, Pressure_i, Enthalpy_i,
+  Density_j, Energy_j, SoundSpeed_j, Pressure_j, Enthalpy_j, R, RoeDensity, RoeEnthalpy, RoeSoundSpeed,
+  ProjVelocity, ProjVelocity_i, ProjVelocity_j;
+  unsigned short iDim, iVar, jVar, kVar;
+  su2double mL, mR, mF, pF;
+  su2double aF, Vn_Mag, aux_slau, Mach_tilde, Chi, f_rho, BetaL, BetaR, Vn_MagL, Vn_MagR;
+  
+public:
+  
+  /*!
+   * \brief Constructor of the class.
+   * \param[in] val_nDim - Number of dimensions of the problem.
+   * \param[in] val_nVar - Number of variables of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
+  CUpwSLAU2_Flow(unsigned short val_nDim, unsigned short val_nVar, CConfig *config, bool val_low_dissipation);
+  
+  /*!
+   * \brief Destructor of the class.
+   */
+  ~CUpwSLAU2_Flow(void);
   
   /*!
    * \brief Compute the Roe's flux between two nodes i and j.
@@ -2101,7 +2309,6 @@ public:
  * \brief Class for performing a linear upwind solver for the Spalart-Allmaras turbulence model equations with transition
  * \ingroup ConvDiscr
  * \author A. Aranake
- * \version 5.0.0 "Raven"
  */
 class CUpwLin_TransLM : public CNumerics {
 private:
@@ -2141,7 +2348,6 @@ public:
  * \brief Class for performing a linear upwind solver for the adjoint turbulence equations.
  * \ingroup ConvDiscr
  * \author A. Bueno.
- * \version 5.0.0 "Raven"
  */
 class CUpwLin_AdjTurb : public CNumerics {
 private:
@@ -2185,7 +2391,6 @@ public:
  *   the pure virtual functions with model-specific behavior.
  * \ingroup ConvDiscr
  * \author C. Pederson, A. Bueno., and A. Campos.
- * \version 5.0.0 "Raven"
  */
 class CUpwScalar : public CNumerics {
 private:
@@ -2246,7 +2451,6 @@ public:
  * \brief Class for doing a scalar upwind solver for the Spalar-Allmaras turbulence model equations.
  * \ingroup ConvDiscr
  * \author A. Bueno.
- * \version 5.0.0 "Raven"
  */
 class CUpwSca_TurbSA : public CUpwScalar {
 private:
@@ -2287,7 +2491,6 @@ public:
  * \brief Class for doing a scalar upwind solver for the Menter SST turbulence model equations.
  * \ingroup ConvDiscr
  * \author A. Campos.
- * \version 5.0.0 "Raven"
  */
 class CUpwSca_TurbSST : public CUpwScalar {
 private:
@@ -2328,7 +2531,6 @@ public:
  * \brief Class for doing a scalar upwind solver for the Spalart-Allmaras turbulence model equations with transition.
  * \ingroup ConvDiscr
  * \author A. Aranake.
- * \version 5.0.0 "Raven"
  */
 class CUpwSca_TransLM : public CNumerics {
 private:
@@ -2367,7 +2569,6 @@ public:
  * \brief Class for doing a scalar upwind solver for the adjoint turbulence equations.
  * \ingroup ConvDiscr
  * \author A. Bueno.
- * \version 5.0.0 "Raven"
  */
 class CUpwSca_AdjTurb : public CNumerics {
 private:
@@ -2401,13 +2602,50 @@ public:
                        su2double **val_Jacobian_ji, su2double **val_Jacobian_jj, CConfig *config);
 };
 
+/*!
+ * \class CUpwSca_Heat
+ * \brief Class for doing a scalar upwind solver for the heat convection equation.
+ * \ingroup ConvDiscr
+ * \author O. Burghardt.
+ * \version 6.0.1 "Falcon"
+ */
+class CUpwSca_Heat : public CNumerics {
+private:
+  su2double *Velocity_i, *Velocity_j;
+  bool implicit, grid_movement;
+  su2double q_ij, a0, a1;
+  unsigned short iDim;
+
+public:
+
+  /*!
+   * \brief Constructor of the class.
+   * \param[in] val_nDim - Number of dimensions of the problem.
+   * \param[in] val_nVar - Number of variables of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
+  CUpwSca_Heat(unsigned short val_nDim, unsigned short val_nVar, CConfig *config);
+
+  /*!
+   * \brief Destructor of the class.
+   */
+  ~CUpwSca_Heat(void);
+
+  /*!
+   * \brief Compute the scalar upwind flux between two nodes i and j.
+   * \param[out] val_residual - Pointer to the total residual.
+   * \param[out] val_Jacobian_i - Jacobian of the numerical method at node i (implicit computation).
+   * \param[out] val_Jacobian_j - Jacobian of the numerical method at node j (implicit computation).
+   * \param[in] config - Definition of the particular problem.
+   */
+  void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, su2double **val_Jacobian_j, CConfig *config);
+};
 
 /*!
  * \class CCentJST_Flow
  * \brief Class for centered shceme - JST.
  * \ingroup ConvDiscr
  * \author F. Palacios
- * \version 5.0.0 "Raven"
  */
 class CCentJST_KE_Flow : public CNumerics {
   
@@ -2461,7 +2699,6 @@ public:
  * \brief Class for centered scheme - JST.
  * \ingroup ConvDiscr
  * \author F. Palacios
- * \version 5.0.0 "Raven"
  */
 class CCentJST_Flow : public CNumerics {
   
@@ -2515,27 +2752,29 @@ public:
  * \brief Class for centered scheme - JST (artificial compressibility).
  * \ingroup ConvDiscr
  * \author F. Palacios
- * \version 5.0.0 "Raven"
  */
 class CCentJSTArtComp_Flow : public CNumerics {
   
 private:
   unsigned short iDim, iVar, jVar; /*!< \brief Iteration on dimension and variables. */
-  su2double *Diff_U, *Diff_Lapl, /*!< \brief Diference of conservative variables and undivided laplacians. */
+  su2double *Diff_V, *Diff_Lapl, /*!< \brief Diference of primitive variables and undivided laplacians. */
   *Velocity_i, *Velocity_j, /*!< \brief Velocity at node 0 and 1. */
   *MeanVelocity, ProjVelocity_i, ProjVelocity_j,  /*!< \brief Mean and projected velocities. */
   sq_vel_i, sq_vel_j,   /*!< \brief Modulus of the velocity and the normal vector. */
-  MeanDensity, MeanPressure, MeanBetaInc2, /*!< \brief Mean values of primitive variables. */
+  Temperature_i, Temperature_j,   /*!< \brief Temperature at node 0 and 1. */
+  MeanDensity, MeanPressure, MeanBetaInc2, MeanEnthalpy, MeanCp, MeanTemperature, /*!< \brief Mean values of primitive variables. */
+  MeandRhodT, /*!< \brief Derivative of density w.r.t. temperature (variable density flows). */
   Param_p, Param_Kappa_2, Param_Kappa_4, /*!< \brief Artificial dissipation parameters. */
   Local_Lambda_i, Local_Lambda_j, MeanLambda, /*!< \brief Local eingenvalues. */
   Phi_i, Phi_j, sc2, sc4, StretchingFactor, /*!< \brief Streching parameters. */
   *ProjFlux,  /*!< \brief Projected inviscid flux tensor. */
-  Epsilon_2, Epsilon_4, cte_0, cte_1; /*!< \brief Artificial dissipation values. */
+  Epsilon_2, Epsilon_4; /*!< \brief Artificial dissipation values. */
+  su2double **Precon;
   bool implicit, /*!< \brief Implicit calculation. */
   grid_movement, /*!< \brief Modification for grid movement. */
-  gravity; /*!< \brief computation with gravity force. */
-  su2double Froude; /*!< \brief Froude number. */
-  
+  variable_density, /*!< \brief Variable density incompressible flows. */
+  energy; /*!< \brief computation with the energy equation. */
+
 public:
   
   /*!
@@ -2553,14 +2792,12 @@ public:
   
   /*!
    * \brief Compute the flow residual using a JST method.
-   * \param[out] val_resconv - Pointer to the convective residual.
-   * \param[out] val_resvisc - Pointer to the artificial viscosity residual.
+   * \param[out] val_residual - Pointer to the residual array.
    * \param[out] val_Jacobian_i - Jacobian of the numerical method at node i (implicit computation).
    * \param[out] val_Jacobian_j - Jacobian of the numerical method at node j (implicit computation).
    * \param[in] config - Definition of the particular problem.
    */
-  void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, su2double **val_Jacobian_j,
-                       CConfig *config);
+  void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, su2double **val_Jacobian_j, CConfig *config);
 };
 
 /*!
@@ -2568,7 +2805,6 @@ public:
  * \brief Class for and adjoint centered scheme - JST.
  * \ingroup ConvDiscr
  * \author F. Palacios
- * \version 5.0.0 "Raven"
  */
 class CCentJST_AdjFlow : public CNumerics {
 private:
@@ -2614,61 +2850,59 @@ public:
 };
 
 /*!
- * \class CCentJSTArtComp_AdjFlow
- * \brief Class for and adjoint centered scheme - JST.
+ * \class CCentSca_Heat
+ * \brief Class for scalar centered scheme.
  * \ingroup ConvDiscr
- * \author F. Palacios
- * \version 5.0.0 "Raven"
+ * \author O. Burghardt
+ * \version 6.0.1 "Falcon"
  */
-class CCentJSTArtComp_AdjFlow : public CNumerics {
+class CCentSca_Heat : public CNumerics {
+
 private:
-  su2double sc2, *Diff_Psi, *Diff_Lapl;
-  su2double *Velocity_i, *Velocity_j;
-  su2double **Proj_Jac_Tensor_i, **Proj_Jac_Tensor_j;
-  unsigned short iDim, iVar, jVar;
-  su2double Residual, ProjVelocity_i, ProjVelocity_j;
-  su2double Param_p, Param_Kappa_4, Param_Kappa_2, Local_Lambda_i, Local_Lambda_j, MeanLambda;
-  su2double Phi_i, Phi_j, sc4, StretchingFactor, Epsilon_4, Epsilon_2;
-  bool implicit;
-  
+  unsigned short iDim; /*!< \brief Iteration on dimension and variables. */
+  su2double *Diff_Lapl, /*!< \brief Diference of conservative variables and undivided laplacians. */
+  *MeanVelocity, ProjVelocity, ProjVelocity_i, ProjVelocity_j,  /*!< \brief Mean and projected velocities. */
+  Param_Kappa_4, /*!< \brief Artificial dissipation parameters. */
+  Local_Lambda_i, Local_Lambda_j, MeanLambda, /*!< \brief Local eingenvalues. */
+  cte_0, cte_1; /*!< \brief Artificial dissipation values. */
+  bool implicit, /*!< \brief Implicit calculation. */
+  grid_movement; /*!< \brief Modification for grid movement. */
+
+
 public:
-  
+
   /*!
    * \brief Constructor of the class.
-   * \param[in] val_nDim - Number of dimensions of the problem.
+   * \param[in] val_nDim - Number of dimension of the problem.
    * \param[in] val_nVar - Number of variables of the problem.
    * \param[in] config - Definition of the particular problem.
    */
-  CCentJSTArtComp_AdjFlow(unsigned short val_nDim, unsigned short val_nVar, CConfig *config);
-  
+  CCentSca_Heat(unsigned short val_nDim, unsigned short val_nVar, CConfig *config);
+
   /*!
    * \brief Destructor of the class.
    */
-  ~CCentJSTArtComp_AdjFlow(void);
-  
+  ~CCentSca_Heat(void);
+
   /*!
-   * \brief Compute the adjoint flow residual using a JST method.
-   * \param[out] val_resconv_i - Pointer to the convective residual at point i.
-   * \param[out] val_resvisc_i - Pointer to the artificial viscosity residual at point i.
-   * \param[out] val_resconv_j - Pointer to the convective residual at point j.
-   * \param[out] val_resvisc_j - Pointer to the artificial viscosity residual at point j.
-   * \param[out] val_Jacobian_ii - Jacobian of the numerical method at node i (implicit computation) from node i.
-   * \param[out] val_Jacobian_ij - Jacobian of the numerical method at node i (implicit computation) from node j.
-   * \param[out] val_Jacobian_ji - Jacobian of the numerical method at node j (implicit computation) from node i.
-   * \param[out] val_Jacobian_jj - Jacobian of the numerical method at node j (implicit computation) from node j.
+   * \brief Compute the flow residual using a JST method.
+   * \param[out] val_resconv - Pointer to the convective residual.
+   * \param[out] val_resvisc - Pointer to the artificial viscosity residual.
+   * \param[out] val_Jacobian_i - Jacobian of the numerical method at node i (implicit computation).
+   * \param[out] val_Jacobian_j - Jacobian of the numerical method at node j (implicit computation).
    * \param[in] config - Definition of the particular problem.
    */
-  void ComputeResidual (su2double *val_resconv_i, su2double *val_resvisc_i, su2double *val_resconv_j, su2double *val_resvisc_j,
-                        su2double **val_Jacobian_ii, su2double **val_Jacobian_ij, su2double **val_Jacobian_ji, su2double **val_Jacobian_jj,
-                        CConfig *config);
+  void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, su2double **val_Jacobian_j,
+                       CConfig *config);
 };
+
+
 
 /*!
  * \class CCentLax_Flow
  * \brief Class for computing the Lax-Friedrich centered scheme.
  * \ingroup ConvDiscr
  * \author F. Palacios
- * \version 5.0.0 "Raven"
  */
 class CCentLax_Flow : public CNumerics {
 private:
@@ -2719,26 +2953,28 @@ public:
  * \class CCentLaxArtComp_Flow
  * \brief Class for computing the Lax-Friedrich centered scheme (artificial compressibility).
  * \ingroup ConvDiscr
- * \author F. Palacios
- * \version 5.0.0 "Raven"
+ * \author F. Palacios, T. Economon
  */
 class CCentLaxArtComp_Flow : public CNumerics {
 private:
   unsigned short iDim, iVar, jVar; /*!< \brief Iteration on dimension and variables. */
-  su2double *Diff_U, /*!< \brief Difference of conservative variables. */
+  su2double *Diff_V, /*!< \brief Difference of primitive variables. */
   *Velocity_i, *Velocity_j, /*!< \brief Velocity at node 0 and 1. */
   *MeanVelocity, ProjVelocity_i, ProjVelocity_j,  /*!< \brief Mean and projected velocities. */
   *ProjFlux,  /*!< \brief Projected inviscid flux tensor. */
   sq_vel_i, sq_vel_j,   /*!< \brief Modulus of the velocity and the normal vector. */
-  MeanDensity, MeanPressure, MeanBetaInc2, /*!< \brief Mean values of primitive variables. */
+  Temperature_i, Temperature_j,   /*!< \brief Temperature at node 0 and 1. */
+  MeanDensity, MeanPressure, MeanBetaInc2, MeanEnthalpy, MeanCp, MeanTemperature, /*!< \brief Mean values of primitive variables. */
+  MeandRhodT, /*!< \brief Derivative of density w.r.t. temperature (variable density flows). */
   Param_p, Param_Kappa_0, /*!< \brief Artificial dissipation parameters. */
   Local_Lambda_i, Local_Lambda_j, MeanLambda, /*!< \brief Local eingenvalues. */
   Phi_i, Phi_j, sc0, StretchingFactor, /*!< \brief Streching parameters. */
   Epsilon_0; /*!< \brief Artificial dissipation values. */
+  su2double **Precon;
   bool implicit, /*!< \brief Implicit calculation. */
   grid_movement, /*!< \brief Modification for grid movement. */
-  gravity; /*!< \brief Modification for for gravity force. */
-  su2double Froude;
+  variable_density, /*!< \brief Variable density incompressible flows. */
+  energy; /*!< \brief computation with the energy equation. */
   
 public:
   
@@ -2757,14 +2993,12 @@ public:
   
   /*!
    * \brief Compute the flow residual using a Lax method.
-   * \param[out] val_resconv - Pointer to the convective residual.
-   * \param[out] val_resvisc - Pointer to the artificial viscosity residual.
+   * \param[out] val_residual - Pointer to the residual array.
    * \param[out] val_Jacobian_i - Jacobian of the numerical method at node i (implicit computation).
    * \param[out] val_Jacobian_j - Jacobian of the numerical method at node j (implicit computation).
    * \param[in] config - Definition of the particular problem.
    */
-  void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, su2double **val_Jacobian_j,
-                       CConfig *config);
+  void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, su2double **val_Jacobian_j, CConfig *config);
 };
 
 /*!
@@ -2772,7 +3006,6 @@ public:
  * \brief Class for computing the Lax-Friedrich adjoint centered scheme.
  * \ingroup ConvDiscr
  * \author F. Palacios
- * \version 5.0.0 "Raven"
  */
 class CCentLax_AdjFlow : public CNumerics {
 private:
@@ -2818,61 +3051,10 @@ public:
 };
 
 /*!
- * \class CCentLaxArtComp_AdjFlow
- * \brief Class for computing the Lax-Friedrich adjoint centered scheme.
- * \ingroup ConvDiscr
- * \author F. Palacios
- * \version 5.0.0 "Raven"
- */
-class CCentLaxArtComp_AdjFlow : public CNumerics {
-private:
-  su2double *Diff_Psi;
-  su2double *Velocity_i, *Velocity_j;
-  su2double *MeanPhi, **Proj_Jac_Tensor_i, **Proj_Jac_Tensor_j;
-  unsigned short iDim, iVar, jVar;
-  su2double Residual, ProjVelocity_i, ProjVelocity_j, Param_p, Param_Kappa_0,
-  Local_Lambda_i, Local_Lambda_j, MeanLambda,
-  Phi_i, Phi_j, sc2, StretchingFactor, Epsilon_0;
-  bool implicit;
-  
-public:
-  
-  /*!
-   * \brief Constructor of the class.
-   * \param[in] val_nDim - Number of dimensions of the problem.
-   * \param[in] val_nVar - Number of variables of the problem.
-   * \param[in] config - Definition of the particular problem.
-   */
-  CCentLaxArtComp_AdjFlow(unsigned short val_nDim, unsigned short val_nVar, CConfig *config);
-  
-  /*!
-   * \brief Destructor of the class.
-   */
-  ~CCentLaxArtComp_AdjFlow(void);
-  
-  /*!
-   * \brief Compute the adjoint flow residual using a Lax method.
-   * \param[out] val_resconv_i - Pointer to the convective residual at point i.
-   * \param[out] val_resvisc_i - Pointer to the artificial viscosity residual at point i.
-   * \param[out] val_resconv_j - Pointer to the convective residual at point j.
-   * \param[out] val_resvisc_j - Pointer to the artificial viscosity residual at point j.
-   * \param[out] val_Jacobian_ii - Jacobian of the numerical method at node i (implicit computation) from node i.
-   * \param[out] val_Jacobian_ij - Jacobian of the numerical method at node i (implicit computation) from node j.
-   * \param[out] val_Jacobian_ji - Jacobian of the numerical method at node j (implicit computation) from node i.
-   * \param[out] val_Jacobian_jj - Jacobian of the numerical method at node j (implicit computation) from node j.
-   * \param[in] config - Definition of the particular problem.
-   */
-  void ComputeResidual (su2double *val_resconv_i, su2double *val_resvisc_i, su2double *val_resconv_j, su2double *val_resvisc_j,
-                        su2double **val_Jacobian_ii, su2double **val_Jacobian_ij, su2double **val_Jacobian_ji, su2double **val_Jacobian_jj,
-                        CConfig *config);
-};
-
-/*!
  * \class CAvgGrad_Flow
  * \brief Class for computing viscous term using the average of gradients.
  * \ingroup ViscDiscr
  * \author A. Bueno, and F. Palacios
- * \version 5.0.0 "Raven"
  */
 class CAvgGrad_Flow : public CNumerics {
 private:
@@ -2963,16 +3145,21 @@ public:
  * \class CAvgGradArtComp_Flow
  * \brief Class for computing viscous term using an average of gradients.
  * \ingroup ViscDiscr
- * \author A. Bueno, and F. Palacios
- * \version 5.0.0 "Raven"
+ * \author A. Bueno, F. Palacios, T. Economon
  */
 class CAvgGradArtComp_Flow : public CNumerics {
 private:
   unsigned short iDim, iVar, jVar;  /*!< \brief Iterators in dimension an variable. */
+  su2double *Mean_PrimVar,           /*!< \brief Mean primitive variables. */
+  *PrimVar_i, *PrimVar_j;           /*!< \brief Primitives variables at point i and j. */
   su2double **Mean_GradPrimVar,          /*!< \brief Mean value of the gradient. */
   Mean_Laminar_Viscosity, Mean_Eddy_Viscosity, /*!< \brief Mean value of the viscosity. */
-  dist_ij;              /*!< \brief Length of the edge and face. */
+  Mean_turb_ke,        /*!< \brief Mean value of the turbulent kinetic energy. */
+  Mean_Thermal_Conductivity, /*!< \brief Mean value of the effective thermal conductivity. */
+  dist_ij,              /*!< \brief Length of the edge and face. */
+  proj_vector_ij;                  /*!< \brief (Edge_Vector DOT normal)/|Edge_Vector|^2 */
   bool implicit;        /*!< \brief Implicit calculus. */
+  bool energy; /*!< \brief computation with the energy equation. */
   
 public:
   
@@ -3011,7 +3198,6 @@ public:
  *   the pure virtual functions with model-specific behavior.
  * \ingroup ViscDiscr
  * \author C. Pederson, A. Bueno, and F. Palacios
- * \version 5.0.0 "Raven"
  */
 class CAvgGrad_Scalar : public CNumerics {
  private:
@@ -3076,7 +3262,6 @@ class CAvgGrad_Scalar : public CNumerics {
  * \brief Class for computing viscous term using average of gradients (Spalart-Allmaras Turbulence model).
  * \ingroup ViscDiscr
  * \author A. Bueno.
- * \version 5.0.0 "Raven"
  */
 class CAvgGrad_TurbSA : public CAvgGrad_Scalar {
 private:
@@ -3121,7 +3306,6 @@ public:
  * \brief Class for computing viscous term using average of gradients (Spalart-Allmaras Turbulence model).
  * \ingroup ViscDiscr
  * \author F. Palacios
- * \version 5.0.0 "Raven"
  */
 class CAvgGrad_TurbSA_Neg : public CAvgGrad_Scalar {
 private:
@@ -3168,7 +3352,6 @@ public:
  * \brief Class for computing viscous term using average of gradients (Spalart-Allmaras Turbulence model).
  * \ingroup ViscDiscr
  * \author A. Bueno.
- * \version 5.0.0 "Raven"
  */
 class CAvgGrad_TransLM : public CNumerics {
 private:
@@ -3211,7 +3394,6 @@ public:
  * \brief Class for computing the adjoint viscous terms.
  * \ingroup ViscDiscr
  * \author F. Palacios
- * \version 5.0.0 "Raven"
  */
 class CAvgGrad_AdjFlow : public CNumerics {
 private:
@@ -3249,51 +3431,10 @@ public:
 };
 
 /*!
- * \class CAvgGradArtComp_AdjFlow
- * \brief Class for computing the adjoint viscous terms.
- * \ingroup ViscDiscr
- * \author F. Palacios
- * \version 5.0.0 "Raven"
- */
-class CAvgGradArtComp_AdjFlow : public CNumerics {
-private:
-  unsigned short iDim, iVar, jVar;  /*!< \brief Iterators in dimension an variable. */
-  su2double **Mean_GradPsiVar,          /*!< \brief Mean value of the gradient. */
-  Mean_Laminar_Viscosity, Mean_Eddy_Viscosity, /*!< \brief Mean value of the viscosity. */
-  dist_ij;              /*!< \brief Length of the edge and face. */
-  bool implicit;        /*!< \brief Implicit calculus. */
-  
-public:
-  
-  /*!
-   * \brief Constructor of the class.
-   * \param[in] val_nDim - Number of dimensions of the problem.
-   * \param[in] val_nVar - Number of variables of the problem.
-   * \param[in] config - Definition of the particular problem.
-   */
-  CAvgGradArtComp_AdjFlow(unsigned short val_nDim, unsigned short val_nVar, CConfig *config);
-  
-  /*!
-   * \brief Destructor of the class.
-   */
-  ~CAvgGradArtComp_AdjFlow(void);
-  
-  /*!
-   * \brief Residual computation.
-   * \param[out] val_residual_i - Pointer to the total residual at point i.
-   * \param[out] val_residual_j - Pointer to the total residual at point j.
-   */
-  void ComputeResidual(su2double *val_residual_i, su2double *val_residual_j,
-                       su2double **val_Jacobian_ii, su2double **val_Jacobian_ij,
-                       su2double **val_Jacobian_ji, su2double **val_Jacobian_jj, CConfig *config);
-};
-
-/*!
  * \class CAvgGradCorrected_Flow
  * \brief Class for computing viscous term using the average of gradients with a correction.
  * \ingroup ViscDiscr
  * \author A. Bueno, and F. Palacios
- * \version 5.0.0 "Raven"
  */
 class CAvgGradCorrected_Flow : public CNumerics {
 private:
@@ -3412,18 +3553,22 @@ public:
  * \class CAvgGradCorrectedArtComp_Flow
  * \brief Class for computing viscous term using an average of gradients with correction (artificial compresibility).
  * \ingroup ViscDiscr
- * \author F. Palacios
- * \version 5.0.0 "Raven"
+ * \author F. Palacios, T. Economon
  */
 class CAvgGradCorrectedArtComp_Flow : public CNumerics {
 private:
   unsigned short iDim, iVar, jVar;  /*!< \brief Iterators in dimension an variable. */
+  su2double *Mean_PrimVar;           /*!< \brief Mean primitive variables. */
   su2double *PrimVar_i, *PrimVar_j,      /*!< \brief Primitives variables at point i and 1. */
   *Edge_Vector,                /*!< \brief Vector form point i to point j. */
   **Mean_GradPrimVar, *Proj_Mean_GradPrimVar_Edge,  /*!< \brief Mean value of the gradient. */
   Mean_Laminar_Viscosity, Mean_Eddy_Viscosity,      /*!< \brief Mean value of the viscosity. */
-  dist_ij_2;          /*!< \brief Length of the edge and face. */
+  Mean_turb_ke,        /*!< \brief Mean value of the turbulent kinetic energy. */
+  Mean_Thermal_Conductivity, Mean_Cp, /*!< \brief Mean value of the effective thermal conductivity and specific heat at constant pressure. */
+  dist_ij_2,          /*!< \brief Length of the edge and face. */
+  proj_vector_ij;     /*!< \brief (Edge_Vector DOT normal)/|Edge_Vector|^2 */
   bool implicit;      /*!< \brief Implicit calculus. */
+  bool energy; /*!< \brief computation with the energy equation. */
   
 public:
   
@@ -3455,7 +3600,6 @@ public:
  * \brief Class for computing viscous term using average of gradients with correction (Spalart-Allmaras turbulence model).
  * \ingroup ViscDiscr
  * \author A. Bueno.
- * \version 5.0.0 "Raven"
  */
 class CAvgGradCorrected_TransLM : public CNumerics {
 private:
@@ -3495,7 +3639,6 @@ public:
  * \brief Class for computing viscous term using average of gradient with correction (Menter SST turbulence model).
  * \ingroup ViscDiscr
  * \author A. Bueno.
- * \version 5.0.0 "Raven"
  */
 class CAvgGrad_TurbSST : public CAvgGrad_Scalar {
 private:
@@ -3554,7 +3697,6 @@ public:
  * \brief Class for computing the adjoint viscous terms, including correction.
  * \ingroup ViscDiscr
  * \author A. Bueno.
- * \version 5.0.0 "Raven"
  */
 class CAvgGradCorrected_AdjFlow : public CNumerics {
 private:
@@ -3598,57 +3740,10 @@ public:
 };
 
 /*!
- * \class CAvgGradCorrectedArtComp_AdjFlow
- * \brief Class for computing the adjoint viscous terms, including correction.
- * \ingroup ViscDiscr
- * \author F.Palacios
- * \version 5.0.0 "Raven"
- */
-class CAvgGradCorrectedArtComp_AdjFlow : public CNumerics {
-private:
-  unsigned short iDim, iVar, jVar;  /*!< \brief Iterators in dimension an variable. */
-  su2double *PsiVar_i, *PsiVar_j,      /*!< \brief Primitives variables at point i and 1. */
-  *Edge_Vector,                /*!< \brief Vector form point i to point j. */
-  **Mean_GradPsiVar, *Proj_Mean_GradPsiVar_Edge,  /*!< \brief Mean value of the gradient. */
-  Mean_Laminar_Viscosity, Mean_Eddy_Viscosity,      /*!< \brief Mean value of the viscosity. */
-  dist_ij_2;          /*!< \brief Length of the edge and face. */
-  bool implicit;      /*!< \brief Implicit calculus. */
-  
-public:
-  
-  /*!
-   * \brief Constructor of the class.
-   * \param[in] val_nDim - Number of dimensions of the problem.
-   * \param[in] val_nVar - Number of variables of the problem.
-   * \param[in] config - Definition of the particular problem.
-   */
-  CAvgGradCorrectedArtComp_AdjFlow(unsigned short val_nDim, unsigned short val_nVar, CConfig *config);
-  
-  /*!
-   * \brief Destructor of the class.
-   */
-  ~CAvgGradCorrectedArtComp_AdjFlow(void);
-  
-  /*!
-   * \brief Compute the adjoint flow viscous residual in a non-conservative way using an average of gradients and derivative correction.
-   * \param[out] val_residual_i - Pointer to the viscous residual at point i.
-   * \param[out] val_residual_j - Pointer to the viscous residual at point j.
-   * \param[out] val_Jacobian_ii - Jacobian of the numerical method at node i (implicit computation) from node i.
-   * \param[out] val_Jacobian_ij - Jacobian of the numerical method at node i (implicit computation) from node j.
-   * \param[out] val_Jacobian_ji - Jacobian of the numerical method at node j (implicit computation) from node i.
-   * \param[out] val_Jacobian_jj - Jacobian of the numerical method at node j (implicit computation) from node j.
-   * \param[in] config - Definition of the particular problem.
-   */
-  void ComputeResidual (su2double *val_residual_i, su2double *val_residual_j, su2double **val_Jacobian_ii, su2double **val_Jacobian_ij,
-                        su2double **val_Jacobian_ji, su2double **val_Jacobian_jj, CConfig *config);
-};
-
-/*!
  * \class CAvgGradCorrected_AdjTurb
  * \brief Class for adjoint turbulent using average of gradients with a correction.
  * \ingroup ViscDiscr
  * \author A. Bueno.
- * \version 5.0.0 "Raven"
  */
 class CAvgGradCorrected_AdjTurb : public CNumerics {
 private:
@@ -3700,7 +3795,6 @@ public:
  * \brief Class for adjoint turbulent using average of gradients with a correction.
  * \ingroup ViscDiscr
  * \author F. Palacios
- * \version 5.0.0 "Raven"
  */
 class CAvgGrad_AdjTurb : public CNumerics {
 private:
@@ -3747,12 +3841,94 @@ public:
                        su2double **val_Jacobian_ji, su2double **val_Jacobian_jj, CConfig *config);
 };
 
+
+/*!
+ * \class CAvgGrad_Heat
+ * \brief Class for computing viscous term using average of gradients without correction (heat equation).
+ * \ingroup ViscDiscr
+ * \author O. Burghardt.
+ * \version 6.0.1 "Falcon"
+ */
+class CAvgGrad_Heat : public CNumerics {
+private:
+  su2double **Mean_GradHeatVar;
+  su2double *Proj_Mean_GradHeatVar_Normal, *Proj_Mean_GradHeatVar_Corrected;
+  su2double *Edge_Vector;
+  bool implicit;
+  su2double dist_ij_2, proj_vector_ij, Thermal_Diffusivity_Mean;
+  unsigned short iVar, iDim;
+
+public:
+
+  /*!
+   * \brief Constructor of the class.
+   * \param[in] val_nDim - Number of dimensions of the problem.
+   * \param[in] val_nVar - Number of variables of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
+  CAvgGrad_Heat(unsigned short val_nDim, unsigned short val_nVar, CConfig *config);
+
+  /*!
+   * \brief Destructor of the class.
+   */
+  ~CAvgGrad_Heat(void);
+
+  /*!
+   * \brief Compute the viscous heat residual using an average of gradients with correction.
+   * \param[out] val_residual - Pointer to the total residual.
+   * \param[out] Jacobian_i - Jacobian of the numerical method at node i (implicit computation).
+   * \param[out] Jacobian_j - Jacobian of the numerical method at node j (implicit computation).
+   * \param[in] config - Definition of the particular problem.
+   */
+  void ComputeResidual(su2double *val_residual, su2double **Jacobian_i, su2double **Jacobian_j, CConfig *config);
+};
+
+/*!
+ * \class CAvgGradCorrected_Heat
+ * \brief Class for computing viscous term using average of gradients with correction (heat equation).
+ * \ingroup ViscDiscr
+ * \author O. Burghardt.
+ * \version 6.0.1 "Falcon"
+ */
+class CAvgGradCorrected_Heat : public CNumerics {
+private:
+  su2double **Mean_GradHeatVar;
+  su2double *Proj_Mean_GradHeatVar_Kappa, *Proj_Mean_GradHeatVar_Edge, *Proj_Mean_GradHeatVar_Corrected;
+  su2double *Edge_Vector;
+  bool implicit;
+  su2double dist_ij_2, proj_vector_ij, Thermal_Diffusivity_Mean;
+  unsigned short iVar, iDim;
+
+public:
+
+  /*!
+   * \brief Constructor of the class.
+   * \param[in] val_nDim - Number of dimensions of the problem.
+   * \param[in] val_nVar - Number of variables of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
+  CAvgGradCorrected_Heat(unsigned short val_nDim, unsigned short val_nVar, CConfig *config);
+
+  /*!
+   * \brief Destructor of the class.
+   */
+  ~CAvgGradCorrected_Heat(void);
+
+  /*!
+   * \brief Compute the viscous heat residual using an average of gradients with correction.
+   * \param[out] val_residual - Pointer to the total residual.
+   * \param[out] Jacobian_i - Jacobian of the numerical method at node i (implicit computation).
+   * \param[out] Jacobian_j - Jacobian of the numerical method at node j (implicit computation).
+   * \param[in] config - Definition of the particular problem.
+   */
+  void ComputeResidual(su2double *val_residual, su2double **Jacobian_i, su2double **Jacobian_j, CConfig *config);
+};
+
 /*!
  * \class CGalerkin_Flow
  * \brief Class for computing the stiffness matrix of the Galerkin method.
  * \ingroup ViscDiscr
  * \author F. Palacios
- * \version 5.0.0 "Raven"
  */
 class CGalerkin_Flow : public CNumerics {
 public:
@@ -3779,13 +3955,13 @@ public:
 };
 
 /*!
- * \class CFEM_Elasticity
+ * \class CFEAElasticity
  * \brief Generic class for computing the tangent matrix and the residual for structural problems
  * \ingroup FEM_Discr
  * \author R.Sanchez
  * \version 4.0.0 "Cardinal"
  */
-class CFEM_Elasticity : public CNumerics {
+class CFEAElasticity : public CNumerics {
 
 protected:
 
@@ -3825,12 +4001,12 @@ public:
    * \param[in] val_nVar - Number of variables of the problem.
    * \param[in] config - Definition of the particular problem.
    */
-  CFEM_Elasticity(unsigned short val_nDim, unsigned short val_nVar, CConfig *config);
+  CFEAElasticity(unsigned short val_nDim, unsigned short val_nVar, CConfig *config);
 
   /*!
    * \brief Destructor of the class.
    */
-  virtual ~CFEM_Elasticity(void);
+  virtual ~CFEAElasticity(void);
 
   void SetMaterial_Properties(unsigned short iVal, su2double val_E, su2double val_Nu);
 
@@ -3873,13 +4049,13 @@ public:
 };
 
 /*!
- * \class CFEM_LinearElasticity
+ * \class CFEALinearElasticity
  * \brief Class for computing the stiffness matrix of a linear, elastic problem.
  * \ingroup FEM_Discr
  * \author R.Sanchez
  * \version 4.0.0 "Cardinal"
  */
-class CFEM_LinearElasticity : public CFEM_Elasticity {
+class CFEALinearElasticity : public CFEAElasticity {
 
   su2double **nodalDisplacement;
 
@@ -3891,12 +4067,12 @@ public:
    * \param[in] val_nVar - Number of variables of the problem.
    * \param[in] config - Definition of the particular problem.
    */
-  CFEM_LinearElasticity(unsigned short val_nDim, unsigned short val_nVar, CConfig *config);
+  CFEALinearElasticity(unsigned short val_nDim, unsigned short val_nVar, CConfig *config);
 
   /*!
    * \brief Destructor of the class.
    */
-  ~CFEM_LinearElasticity(void);
+  ~CFEALinearElasticity(void);
 
   void Compute_Tangent_Matrix(CElement *element_container, CConfig *config);
 
@@ -3908,13 +4084,13 @@ public:
 };
 
 /*!
- * \class CFEM_LinearElasticity
+ * \class CFEANonlinearElasticity
  * \brief Class for computing the stiffness matrix of a nonlinear, elastic problem.
  * \ingroup FEM_Discr
  * \author R.Sanchez
  * \version 4.0.0 "Cardinal"
  */
-class CFEM_NonlinearElasticity : public CFEM_Elasticity {
+class CFEANonlinearElasticity : public CFEAElasticity {
 
 protected:
 
@@ -3965,12 +4141,12 @@ public:
    * \param[in] val_nVar - Number of variables of the problem.
    * \param[in] config - Definition of the particular problem.
    */
-  CFEM_NonlinearElasticity(unsigned short val_nDim, unsigned short val_nVar, CConfig *config);
+  CFEANonlinearElasticity(unsigned short val_nDim, unsigned short val_nVar, CConfig *config);
 
   /*!
    * \brief Destructor of the class.
    */
-  virtual ~CFEM_NonlinearElasticity(void);
+  virtual ~CFEANonlinearElasticity(void);
 
   void Compute_Tangent_Matrix(CElement *element_container, CConfig *config);
 
@@ -4016,7 +4192,7 @@ public:
  * \author R.Sanchez
  * \version 4.0.0 "Cardinal"
  */
-class CFEM_NeoHookean_Comp : public CFEM_NonlinearElasticity {
+class CFEM_NeoHookean_Comp : public CFEANonlinearElasticity {
 
 public:
 
@@ -4049,7 +4225,7 @@ public:
  * \author R.Sanchez
  * \version 4.0.0 "Cardinal"
  */
-class CFEM_NeoHookean_Incomp : public CFEM_NonlinearElasticity {
+class CFEM_NeoHookean_Incomp : public CFEANonlinearElasticity {
 
 public:
 
@@ -4082,7 +4258,7 @@ public:
  * \author R.Sanchez
  * \version 4.0.0 "Cardinal"
  */
-class CFEM_IdealDE : public CFEM_NonlinearElasticity {
+class CFEM_IdealDE : public CFEANonlinearElasticity {
 
 	su2double trbbar, Eg, Eg23, Ek, Pr;	/*!< \brief Variables of the model calculation. */
 
@@ -4116,7 +4292,7 @@ public:
  * \author R.Sanchez
  * \version 4.0.0 "Cardinal"
  */
-class CFEM_Knowles_NearInc : public CFEM_NonlinearElasticity {
+class CFEM_Knowles_NearInc : public CFEANonlinearElasticity {
 
 	su2double trbbar, term1, term2, Ek, Pr;	/*!< \brief Variables of the model calculation. */
 	su2double Bk, Nk;						/*!< \brief Parameters b and n of the model. */
@@ -4152,7 +4328,7 @@ public:
  * \author R.Sanchez
  * \version 4.0.0 "Cardinal"
  */
-class CFEM_DielectricElastomer : public CFEM_NonlinearElasticity {
+class CFEM_DielectricElastomer : public CFEANonlinearElasticity {
 
 public:
 
@@ -4184,7 +4360,6 @@ public:
  * \brief Dummy class.
  * \ingroup SourceDiscr
  * \author F. Palacios
- * \version 5.0.0 "Raven"
  */
 class CSourceNothing : public CNumerics {
 public:
@@ -4208,7 +4383,6 @@ public:
  * \brief Class for integrating the source terms of the Spalart-Allmaras turbulence model equation.
  * \ingroup SourceDiscr
  * \author A. Bueno.
- * \version 5.0.0 "Raven"
  */
 class CSourcePieceWise_TurbSA : public CNumerics {
 private:
@@ -4307,11 +4481,302 @@ public:
 };
 
 /*!
+ * \class CSourcePieceWise_TurbSA_E
+ * \brief Class for integrating the source terms of the Spalart-Allmaras Edwards modification turbulence model equation.
+ * \ingroup SourceDiscr
+ * \author E.Molina, A. Bueno.
+ * \version 4.1.0 "Cardinal"
+ */
+class CSourcePieceWise_TurbSA_E : public CNumerics {
+private:
+    su2double cv1_3;
+    su2double k2;
+    su2double cb1;
+    su2double cw2;
+    su2double ct3;
+    su2double ct4;
+    su2double cw3_6;
+    su2double cb2_sigma;
+    su2double sigma;
+    su2double cb2;
+    su2double cw1;
+    unsigned short iDim;
+    su2double nu, Ji, fv1, fv2, ft2, Omega, S, Shat, inv_Shat, dist_i_2, Ji_2, Ji_3, inv_k2_d2;
+    su2double r, g, g_6, glim, fw;
+    su2double norm2_Grad;
+    su2double dfv1, dfv2, dShat;
+    su2double dr, dg, dfw;
+    bool incompressible;
+    bool rotating_frame;
+    su2double intermittency;
+    su2double Production, Destruction, CrossProduction;
+    su2double Sbar;
+    unsigned short jDim;
+    
+public:
+    
+    /*!
+     * \brief Constructor of the class.
+     * \param[in] val_nDim - Number of dimensions of the problem.
+     * \param[in] val_nVar - Number of variables of the problem.
+     * \param[in] config - Definition of the particular problem.
+     */
+    CSourcePieceWise_TurbSA_E(unsigned short val_nDim, unsigned short val_nVar, CConfig *config);
+    
+    /*!
+     * \brief Destructor of the class.
+     */
+    ~CSourcePieceWise_TurbSA_E(void);
+    
+    /*!
+     * \brief Residual for source term integration.
+     * \param[out] val_residual - Pointer to the total residual.
+     * \param[out] val_Jacobian_i - Jacobian of the numerical method at node i (implicit computation).
+     * \param[out] val_Jacobian_j - Jacobian of the numerical method at node j (implicit computation).
+     * \param[in] config - Definition of the particular problem.
+     */
+    void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, su2double **val_Jacobian_j, CConfig *config);
+    
+    /*!
+     * \brief Residual for source term integration.
+     * \param[in] intermittency_in - Value of the intermittency.
+     */
+    void SetIntermittency(su2double intermittency_in);
+    
+    /*!
+     * \brief Residual for source term integration.
+     * \param[in] val_production - Value of the Production.
+     */
+    void SetProduction(su2double val_production);
+    
+    /*!
+     * \brief Residual for source term integration.
+     * \param[in] val_destruction - Value of the Destruction.
+     */
+    void SetDestruction(su2double val_destruction);
+    
+    /*!
+     * \brief Residual for source term integration.
+     * \param[in] val_crossproduction - Value of the CrossProduction.
+     */
+    void SetCrossProduction(su2double val_crossproduction);
+    
+    /*!
+     * \brief ______________.
+     */
+    su2double GetProduction(void);
+    
+    /*!
+     * \brief  ______________.
+     */
+    su2double GetDestruction(void);
+    
+    /*!
+     * \brief  ______________.
+     */
+    su2double GetCrossProduction(void);
+};
+
+/*!
+ * \class CSourcePieceWise_TurbSA_COMP
+ * \brief Class for integrating the source terms of the Spalart-Allmaras CC modification turbulence model equation.
+ * \ingroup SourceDiscr
+ * \author E.Molina, A. Bueno.
+ * \version 4.2.0 "Cardinal"
+ */
+class CSourcePieceWise_TurbSA_COMP : public CNumerics {
+private:
+    su2double cv1_3;
+    su2double k2;
+    su2double cb1;
+    su2double cw2;
+    su2double ct3;
+    su2double ct4;
+    su2double cw3_6;
+    su2double cb2_sigma;
+    su2double sigma;
+    su2double cb2;
+    su2double cw1;
+    unsigned short iDim;
+    su2double nu, Ji, fv1, fv2, ft2, Omega, S, Shat, inv_Shat, dist_i_2, Ji_2, Ji_3, inv_k2_d2;
+    su2double r, g, g_6, glim, fw;
+    su2double norm2_Grad;
+    su2double dfv1, dfv2, dShat;
+    su2double dr, dg, dfw;
+    bool incompressible;
+    bool rotating_frame;
+    su2double intermittency;
+    su2double Production, Destruction, CrossProduction;
+    su2double aux_cc, CompCorrection, c5;
+    unsigned short jDim;
+    
+public:
+    
+    /*!
+     * \brief Constructor of the class.
+     * \param[in] val_nDim - Number of dimensions of the problem.
+     * \param[in] val_nVar - Number of variables of the problem.
+     * \param[in] config - Definition of the particular problem.
+     */
+    CSourcePieceWise_TurbSA_COMP(unsigned short val_nDim, unsigned short val_nVar, CConfig *config);
+    
+    /*!
+     * \brief Destructor of the class.
+     */
+    ~CSourcePieceWise_TurbSA_COMP(void);
+    
+    /*!
+     * \brief Residual for source term integration.
+     * \param[out] val_residual - Pointer to the total residual.
+     * \param[out] val_Jacobian_i - Jacobian of the numerical method at node i (implicit computation).
+     * \param[out] val_Jacobian_j - Jacobian of the numerical method at node j (implicit computation).
+     * \param[in] config - Definition of the particular problem.
+     */
+    void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, su2double **val_Jacobian_j, CConfig *config);
+    
+    /*!
+     * \brief Residual for source term integration.
+     * \param[in] intermittency_in - Value of the intermittency.
+     */
+    void SetIntermittency(su2double intermittency_in);
+    
+    /*!
+     * \brief Residual for source term integration.
+     * \param[in] val_production - Value of the Production.
+     */
+    void SetProduction(su2double val_production);
+    
+    /*!
+     * \brief Residual for source term integration.
+     * \param[in] val_destruction - Value of the Destruction.
+     */
+    void SetDestruction(su2double val_destruction);
+    
+    /*!
+     * \brief Residual for source term integration.
+     * \param[in] val_crossproduction - Value of the CrossProduction.
+     */
+    void SetCrossProduction(su2double val_crossproduction);
+    
+    /*!
+     * \brief ______________.
+     */
+    su2double GetProduction(void);
+    
+    /*!
+     * \brief  ______________.
+     */
+    su2double GetDestruction(void);
+    
+    /*!
+     * \brief  ______________.
+     */
+    su2double GetCrossProduction(void);
+};
+
+/*!
+ * \class CSourcePieceWise_TurbSA_E_COMP
+ * \brief Class for integrating the source terms of the Spalart-Allmaras Edwards modification with CC turbulence model equation.
+ * \ingroup SourceDiscr
+ * \author E.Molina, A. Bueno.
+ * \version 4.2.0 "Cardinal"
+ */
+class CSourcePieceWise_TurbSA_E_COMP : public CNumerics {
+private:
+    su2double cv1_3;
+    su2double k2;
+    su2double cb1;
+    su2double cw2;
+    su2double ct3;
+    su2double ct4;
+    su2double cw3_6;
+    su2double cb2_sigma;
+    su2double sigma;
+    su2double cb2;
+    su2double cw1;
+    unsigned short iDim;
+    su2double nu, Ji, fv1, fv2, ft2, Omega, S, Shat, inv_Shat, dist_i_2, Ji_2, Ji_3, inv_k2_d2;
+    su2double r, g, g_6, glim, fw;
+    su2double norm2_Grad;
+    su2double dfv1, dfv2, dShat;
+    su2double dr, dg, dfw;
+    bool incompressible;
+    bool rotating_frame;
+    su2double intermittency;
+    su2double Production, Destruction, CrossProduction;
+    su2double Sbar;
+    unsigned short jDim;
+    su2double aux_cc, CompCorrection, c5;
+    
+public:
+    
+    /*!
+     * \brief Constructor of the class.
+     * \param[in] val_nDim - Number of dimensions of the problem.
+     * \param[in] val_nVar - Number of variables of the problem.
+     * \param[in] config - Definition of the particular problem.
+     */
+    CSourcePieceWise_TurbSA_E_COMP(unsigned short val_nDim, unsigned short val_nVar, CConfig *config);
+    
+    /*!
+     * \brief Destructor of the class.
+     */
+    ~CSourcePieceWise_TurbSA_E_COMP(void);
+    
+    /*!
+     * \brief Residual for source term integration.
+     * \param[out] val_residual - Pointer to the total residual.
+     * \param[out] val_Jacobian_i - Jacobian of the numerical method at node i (implicit computation).
+     * \param[out] val_Jacobian_j - Jacobian of the numerical method at node j (implicit computation).
+     * \param[in] config - Definition of the particular problem.
+     */
+    void ComputeResidual(su2double *val_residual, su2double **val_Jacobian_i, su2double **val_Jacobian_j, CConfig *config);
+    
+    /*!
+     * \brief Residual for source term integration.
+     * \param[in] intermittency_in - Value of the intermittency.
+     */
+    void SetIntermittency(su2double intermittency_in);
+    
+    /*!
+     * \brief Residual for source term integration.
+     * \param[in] val_production - Value of the Production.
+     */
+    void SetProduction(su2double val_production);
+    
+    /*!
+     * \brief Residual for source term integration.
+     * \param[in] val_destruction - Value of the Destruction.
+     */
+    void SetDestruction(su2double val_destruction);
+    
+    /*!
+     * \brief Residual for source term integration.
+     * \param[in] val_crossproduction - Value of the CrossProduction.
+     */
+    void SetCrossProduction(su2double val_crossproduction);
+    
+    /*!
+     * \brief ______________.
+     */
+    su2double GetProduction(void);
+    
+    /*!
+     * \brief  ______________.
+     */
+    su2double GetDestruction(void);
+    
+    /*!
+     * \brief  ______________.
+     */
+    su2double GetCrossProduction(void);
+};
+
+/*!
  * \class CSourcePieceWise_TurbSA_Neg
  * \brief Class for integrating the source terms of the Spalart-Allmaras turbulence model equation.
  * \ingroup SourceDiscr
  * \author F. Palacios
- * \version 5.0.0 "Raven"
  */
 class CSourcePieceWise_TurbSA_Neg : public CNumerics {
 private:
@@ -4406,7 +4871,6 @@ public:
  * \brief Class for integrating the source terms of the Spalart-Allmaras turbulence model equation.
  * \ingroup SourceDiscr
  * \author A. Bueno.
- * \version 5.0.0 "Raven"
  */
 class CSourcePieceWise_TransLM : public CNumerics {
 private:
@@ -4471,7 +4935,6 @@ public:
  * \brief Class for integrating the source terms of the Menter SST turbulence model equations.
  * \ingroup SourceDiscr
  * \author A. Campos.
- * \version 5.0.0 "Raven"
  */
 class CSourcePieceWise_TurbSST : public CNumerics {
 private:
@@ -4574,7 +5037,6 @@ public:
  * \brief Class for the source term integration of the gravity force.
  * \ingroup SourceDiscr
  * \author F. Palacios
- * \version 5.0.0 "Raven"
  */
 class CSourceGravity : public CNumerics {
   su2double Froude;
@@ -4607,7 +5069,6 @@ public:
  * \brief Class for the source term integration of a body force.
  * \ingroup SourceDiscr
  * \author T. Economon
- * \version 5.0.0 "Raven"
  */
 class CSourceBodyForce : public CNumerics {
   su2double *Body_Force_Vector;
@@ -4637,11 +5098,111 @@ public:
 };
 
 /*!
+ * \class CSourceIncBodyForce
+ * \brief Class for the source term integration of a body force in the incompressible solver.
+ * \ingroup SourceDiscr
+ * \author T. Economon
+ * \version 5.0.0 "Raven"
+ */
+class CSourceIncBodyForce : public CNumerics {
+  su2double *Body_Force_Vector;
+
+public:
+
+  /*!
+   * \param[in] val_nDim - Number of dimensions of the problem.
+   * \param[in] val_nVar - Number of variables of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
+  CSourceIncBodyForce(unsigned short val_nDim, unsigned short val_nVar, CConfig *config);
+
+  /*!
+   * \brief Destructor of the class.
+   */
+  ~CSourceIncBodyForce(void);
+
+  /*!
+   * \brief Source term integration for a body force.
+   * \param[out] val_residual - Pointer to the residual vector.
+   * \param[in] config - Definition of the particular problem.
+   */
+  void ComputeResidual(su2double *val_residual, CConfig *config);
+  
+};
+
+/*!
+ * \class CSourceBoussinesq
+ * \brief Class for the source term integration of the Boussinesq approximation for incompressible flow.
+ * \ingroup SourceDiscr
+ * \author T. Economon
+ * \version 5.0.0 "Raven"
+ */
+class CSourceBoussinesq : public CNumerics {
+  su2double *Gravity_Vector;
+
+public:
+
+  /*!
+   * \param[in] val_nDim - Number of dimensions of the problem.
+   * \param[in] val_nVar - Number of variables of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
+  CSourceBoussinesq(unsigned short val_nDim, unsigned short val_nVar, CConfig *config);
+
+  /*!
+   * \brief Destructor of the class.
+   */
+  ~CSourceBoussinesq(void);
+
+  /*!
+   * \brief Source term integration for the Boussinesq approximation.
+   * \param[out] val_residual - Pointer to the residual vector.
+   * \param[in] config - Definition of the particular problem.
+   */
+  void ComputeResidual(su2double *val_residual, CConfig *config);
+
+};
+
+/*!
+ * \class CSourceIncAxisymmetric_Flow
+ * \brief Class for source term for solving incompressible axisymmetric problems.
+ * \ingroup SourceDiscr
+ * \author T. Economon
+ */
+class CSourceIncAxisymmetric_Flow : public CNumerics {
+  bool implicit, /*!< \brief Implicit calculation. */
+  viscous, /*!< \brief Viscous incompressible flows. */
+  energy; /*!< \brief computation with the energy equation. */
+
+public:
+
+  /*!
+   * \brief Constructor of the class.
+   * \param[in] val_nDim - Number of dimensions of the problem.
+   * \param[in] val_nVar - Number of variables of the problem.
+   * \param[in] config - Definition of the particular problem.
+   */
+  CSourceIncAxisymmetric_Flow(unsigned short val_nDim, unsigned short val_nVar, CConfig *config);
+
+  /*!
+   * \brief Destructor of the class.
+   */
+  ~CSourceIncAxisymmetric_Flow(void);
+
+  /*!
+   * \brief Residual of the rotational frame source term.
+   * \param[out] val_residual - Pointer to the total residual.
+   * \param[in] config - Definition of the particular problem.
+   */
+  void ComputeResidual(su2double *val_residual, su2double **Jacobian_i, CConfig *config);
+
+};
+
+/*!
  * \class CSourceViscous_AdjFlow
  * \brief Class for source term integration in adjoint problem.
  * \ingroup SourceDiscr
  * \author F. Palacios
- * \version 5.0.0 "Raven"
  */
 class CSourceViscous_AdjFlow : public CNumerics {
 private:
@@ -4677,7 +5238,6 @@ public:
  * \brief Class for source term integration of the adjoint turbulent equation.
  * \ingroup SourceDiscr
  * \author A. Bueno.
- * \version 5.0.0 "Raven"
  */
 class CSourcePieceWise_AdjTurb : public CNumerics {
 private:
@@ -4741,7 +5301,6 @@ public:
  * \brief Class for source term integration in adjoint turbulent problem using a conservative scheme.
  * \ingroup SourceDiscr
  * \author A. Bueno.
- * \version 5.0.0 "Raven"
  */
 class CSourceConservative_AdjTurb : public CNumerics {
 public:
@@ -4774,7 +5333,6 @@ public:
  * \brief Class for a rotating frame source term.
  * \ingroup SourceDiscr
  * \author F. Palacios, T. Economon.
- * \version 5.0.0 "Raven"
  */
 class CSourceRotatingFrame_Flow : public CNumerics {
 public:
@@ -4806,7 +5364,6 @@ public:
  * \brief Source term class for rotating frame adjoint.
  * \ingroup SourceDiscr
  * \author T. Economon.
- * \version 5.0.0 "Raven"
  */
 class CSourceRotatingFrame_AdjFlow : public CNumerics {
 public:
@@ -4838,7 +5395,6 @@ public:
  * \brief Class for source term for solving axisymmetric problems.
  * \ingroup SourceDiscr
  * \author F. Palacios
- * \version 5.0.0 "Raven"
  */
 class CSourceAxisymmetric_Flow : public CNumerics {
 public:
@@ -4870,7 +5426,6 @@ public:
  * \brief Class for source term for solving axisymmetric problems.
  * \ingroup SourceDiscr
  * \author F. Palacios
- * \version 5.0.0 "Raven"
  */
 class CSourceAxisymmetric_AdjFlow : public CNumerics {
 public:
@@ -4901,7 +5456,6 @@ public:
  * \brief Class for a source term due to a wind gust.
  * \ingroup SourceDiscr
  * \author S. Padrón
- * \version 5.0.0 "Raven"
  */
 class CSourceWindGust : public CNumerics {
 public:
@@ -4933,7 +5487,6 @@ public:
  * \brief Dummy class.
  * \ingroup SourceDiscr
  * \author A. Lonkar.
- * \version 5.0.0 "Raven"
  */
 class CSource_Template : public CNumerics {
 public:
@@ -4967,7 +5520,6 @@ public:
  * \brief Class for setting up new method for spatial discretization of convective terms in flow Equations
  * \ingroup ConvDiscr
  * \author A. Lonkar
- * \version 5.0.0 "Raven"
  */
 class CConvective_Template : public CNumerics {
 private:
@@ -5015,7 +5567,6 @@ public:
  * \brief Class for computing viscous term using average of gradients.
  * \ingroup ViscDiscr
  * \author F. Palacios
- * \version 5.0.0 "Raven"
  */
 class CViscous_Template : public CNumerics {
 private:

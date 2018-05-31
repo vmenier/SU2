@@ -3,20 +3,24 @@
  * \brief Headers of the main subroutines used by SU2_CFD.
  *        The subroutines and functions are in the <i>definition_structure.cpp</i> file.
  * \author F. Palacios, T. Economon
- * \version 5.0.0 "Raven"
+ * \version 6.0.1 "Falcon"
  *
- * SU2 Original Developers: Dr. Francisco D. Palacios.
- *                          Dr. Thomas D. Economon.
+ * The current SU2 release has been coordinated by the
+ * SU2 International Developers Society <www.su2devsociety.org>
+ * with selected contributions from the open-source community.
  *
- * SU2 Developers: Prof. Juan J. Alonso's group at Stanford University.
- *                 Prof. Piero Colonna's group at Delft University of Technology.
- *                 Prof. Nicolas R. Gauger's group at Kaiserslautern University of Technology.
- *                 Prof. Alberto Guardone's group at Polytechnic University of Milan.
- *                 Prof. Rafael Palacios' group at Imperial College London.
- *                 Prof. Edwin van der Weide's group at the University of Twente.
- *                 Prof. Vincent Terrapon's group at the University of Liege.
+ * The main research teams contributing to the current release are:
+ *  - Prof. Juan J. Alonso's group at Stanford University.
+ *  - Prof. Piero Colonna's group at Delft University of Technology.
+ *  - Prof. Nicolas R. Gauger's group at Kaiserslautern University of Technology.
+ *  - Prof. Alberto Guardone's group at Polytechnic University of Milan.
+ *  - Prof. Rafael Palacios' group at Imperial College London.
+ *  - Prof. Vincent Terrapon's group at the University of Liege.
+ *  - Prof. Edwin van der Weide's group at the University of Twente.
+ *  - Lab. of New Concepts in Aeronautics at Tech. Institute of Aeronautics.
  *
- * Copyright (C) 2012-2017 SU2, the open-source CFD code.
+ * Copyright 2012-2018, Francisco D. Palacios, Thomas D. Economon,
+ *                      Tim Albring, and the SU2 contributors.
  *
  * SU2 is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -53,10 +57,11 @@ using namespace std;
  * \class CIteration
  * \brief Parent class for defining a single iteration of a physics problem.
  * \author T. Economon
- * \version 5.0.0 "Raven"
  */
 class CIteration {
 protected:
+  int rank, 	/*!< \brief MPI Rank. */
+  size;       	/*!< \brief MPI Size. */
   unsigned short nZone;  /*!< \brief Total number of zones in the problem. */
   
 public:
@@ -239,7 +244,6 @@ public:
  * \class CFluidIteration
  * \brief Class for driving an iteration of the fluid system.
  * \author T. Economon
- * \version 5.0.0 "Raven"
  */
 class CFluidIteration : public CIteration {
 public:
@@ -364,7 +368,6 @@ public:
  * \class CTurboIteration
  * \brief Class for driving an iteration for turbomachinery simulation.
  * \author T. Economon
- * \version 5.0.0 "Raven"
  */
 class CTurboIteration : public CFluidIteration {
 public:
@@ -419,7 +422,6 @@ public:
  * \class CWaveIteration
  * \brief Class for driving an iteration of the wave system.
  * \author T. Economon
- * \version 5.0.0 "Raven"
  */
 class CWaveIteration : public CIteration {
 public:
@@ -540,7 +542,6 @@ public:
  * \class CHeatIteration
  * \brief Class for driving an iteration of the heat system.
  * \author T. Economon
- * \version 5.0.0 "Raven"
  */
 class CHeatIteration : public CIteration {
 public:
@@ -644,7 +645,6 @@ public:
  * \class CPoissonIteration
  * \brief Class for driving an iteration of the poisson system.
  * \author T. Economon
- * \version 5.0.0 "Raven"
  */
 class CPoissonIteration : public CIteration {
 public:
@@ -745,24 +745,24 @@ public:
 };
 
 /*!
- * \class CFEM_StructuralAnalysis
+ * \class CFEAIteration
  * \brief Class for driving an iteration of structural analysis.
  * \author R. Sanchez
  * \version 4.0.1 "Cardinal"
  */
-class CFEM_StructuralAnalysis : public CIteration {
+class CFEAIteration : public CIteration {
 public:
 
   /*!
    * \brief Constructor of the class.
    * \param[in] config - Definition of the particular problem.
    */
-  CFEM_StructuralAnalysis(CConfig *config);
+  CFEAIteration(CConfig *config);
 
   /*!
    * \brief Destructor of the class.
    */
-  ~CFEM_StructuralAnalysis(void);
+  ~CFEAIteration(void);
 
   /*!
    * \brief Preprocessing to prepare for an iteration of the physics.
@@ -847,7 +847,6 @@ public:
  * \class CAdjFluidIteration
  * \brief Class for driving an iteration of the adjoint fluid system.
  * \author T. Economon
- * \version 5.0.0 "Raven"
  */
 class CAdjFluidIteration : public CIteration {
 public:
@@ -950,7 +949,6 @@ public:
  * \class CDiscAdjFluidIteration
  * \brief Class for driving an iteration of the discrete adjoint fluid system.
  * \author T. Economon
- * \version 5.0.0 "Raven"
  */
 class CDiscAdjFluidIteration : public CIteration {
 
@@ -1166,13 +1164,12 @@ public:
  * \class CDiscAdjFEAIteration
  * \brief Class for driving an iteration of the discrete adjoint FEM system.
  * \author R. Sanchez
- * \version 5.0.0 "Raven"
  */
 class CDiscAdjFEAIteration : public CIteration {
 
 private:
 
-  CFEM_StructuralAnalysis* fem_iteration; /*!< \brief Pointer to the mean flow iteration class. */
+  CFEAIteration* fem_iteration; /*!< \brief Pointer to the mean flow iteration class. */
   unsigned short CurrentRecording;        /*!< \brief Stores the current status of the recording. */
 
 
@@ -1364,21 +1361,3 @@ public:
 
 };
 
-
-/*!
- * \brief Iteration function for structural analysis using the Finite Element Method.
- * \author R. Sanchez.
- * \param[in] output - Pointer to the COutput class.
- * \param[in] integration_container - Container vector with all the integration methods.
- * \param[in] geometry_container - Geometrical definition of the problem.
- * \param[in] solver_container - Container vector with all the solutions.
- * \param[in] numerics_container - Description of the numerical method (the way in which the equations are solved).
- * \param[in] config_container - Definition of the particular problem.
- * \param[in] surface_movement - Surface movement classes of the problem.
- * \param[in] grid_movement - Volume grid movement classes of the problem.
- * \param[in] FFDBox - FFD FFDBoxes of the problem.
- * \param[in] ExtIter - Current physical time iteration number.
- */
-void FEM_StructuralIteration(COutput *output, CIntegration ***integration_container, CGeometry ***geometry_container,
-                  CSolver ****solver_container, CNumerics *****numerics_container, CConfig **config_container,
-                  CSurfaceMovement **surface_movement, CVolumetricMovement **grid_movement, CFreeFormDefBox*** FFDBox);

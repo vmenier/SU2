@@ -2,20 +2,24 @@
  * \file solver_adjoint_discrete.cpp
  * \brief Main subroutines for solving the discrete adjoint problem.
  * \author T. Albring
- * \version 5.0.0 "Raven"
+ * \version 6.0.1 "Falcon"
  *
- * SU2 Original Developers: Dr. Francisco D. Palacios.
- *                          Dr. Thomas D. Economon.
+ * The current SU2 release has been coordinated by the
+ * SU2 International Developers Society <www.su2devsociety.org>
+ * with selected contributions from the open-source community.
  *
- * SU2 Developers: Prof. Juan J. Alonso's group at Stanford University.
- *                 Prof. Piero Colonna's group at Delft University of Technology.
- *                 Prof. Nicolas R. Gauger's group at Kaiserslautern University of Technology.
- *                 Prof. Alberto Guardone's group at Polytechnic University of Milan.
- *                 Prof. Rafael Palacios' group at Imperial College London.
- *                 Prof. Edwin van der Weide's group at the University of Twente.
- *                 Prof. Vincent Terrapon's group at the University of Liege.
+ * The main research teams contributing to the current release are:
+ *  - Prof. Juan J. Alonso's group at Stanford University.
+ *  - Prof. Piero Colonna's group at Delft University of Technology.
+ *  - Prof. Nicolas R. Gauger's group at Kaiserslautern University of Technology.
+ *  - Prof. Alberto Guardone's group at Polytechnic University of Milan.
+ *  - Prof. Rafael Palacios' group at Imperial College London.
+ *  - Prof. Vincent Terrapon's group at the University of Liege.
+ *  - Prof. Edwin van der Weide's group at the University of Twente.
+ *  - Lab. of New Concepts in Aeronautics at Tech. Institute of Aeronautics.
  *
- * Copyright (C) 2012-2017 SU2, the open-source CFD code.
+ * Copyright 2012-2018, Francisco D. Palacios, Thomas D. Economon,
+ *                      Tim Albring, and the SU2 contributors.
  *
  * SU2 is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -325,10 +329,41 @@ void CDiscAdjSolver::RegisterVariables(CGeometry *geometry, CConfig *config, boo
     config->SetTotalTemperatureIn_BC(Temperature);
   }
 
+  /*--- Register incompressible initialization values as input ---*/
 
-    /*--- Here it is possible to register other variables as input that influence the flow solution
-     * and thereby also the objective function. The adjoint values (i.e. the derivatives) can be
-     * extracted in the ExtractAdjointVariables routine. ---*/
+  if ((config->GetKind_Regime() == INCOMPRESSIBLE) &&
+      ((KindDirect_Solver == RUNTIME_FLOW_SYS &&
+        (!config->GetBoolTurbomachinery())))) {
+
+    /*--- Access the velocity (or pressure) and temperature at the
+     inlet BC and the back pressure at the outlet. Note that we are
+     assuming that have internal flow, which will be true for the
+     majority of cases. External flows with far-field BCs will report
+     zero for these sensitivities. ---*/
+
+    ModVel    = config->GetIncInlet_BC();
+    BPressure = config->GetIncPressureOut_BC();
+    Temperature = config->GetIncTemperature_BC();
+
+    /*--- Register the variables for AD. ---*/
+
+    if (!reset) {
+      AD::RegisterInput(ModVel);
+      AD::RegisterInput(BPressure);
+      AD::RegisterInput(Temperature);
+    }
+
+    /*--- Set the BC values in the config class. ---*/
+
+    config->SetIncInlet_BC(ModVel);
+    config->SetIncPressureOut_BC(BPressure);
+    config->SetIncTemperature_BC(Temperature);
+
+  }
+
+  /*--- Here it is possible to register other variables as input that influence the flow solution
+   * and thereby also the objective function. The adjoint values (i.e. the derivatives) can be
+   * extracted in the ExtractAdjointVariables routine. ---*/
 }
 
 void CDiscAdjSolver::RegisterOutput(CGeometry *geometry, CConfig *config) {
@@ -347,11 +382,6 @@ void CDiscAdjSolver::RegisterOutput(CGeometry *geometry, CConfig *config) {
 }
 
 void CDiscAdjSolver::RegisterObj_Func(CConfig *config) {
-
-  int rank = MASTER_NODE;
-#ifdef HAVE_MPI
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#endif
 
   /*--- Here we can add new (scalar) objective functions ---*/
   if (config->GetnObj()==1) {
@@ -404,7 +434,6 @@ void CDiscAdjSolver::RegisterObj_Func(CConfig *config) {
 }
 
 void CDiscAdjSolver::SetAdj_ObjFunc(CGeometry *geometry, CConfig *config) {
-  int rank = MASTER_NODE;
 
   bool time_stepping = config->GetUnsteady_Simulation() != STEADY;
   unsigned long IterAvg_Obj = config->GetIter_Avg_Objective();
@@ -419,10 +448,6 @@ void CDiscAdjSolver::SetAdj_ObjFunc(CGeometry *geometry, CConfig *config) {
       seeding = 0.0;
     }
   }
-
-#ifdef HAVE_MPI
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#endif
 
   if (rank == MASTER_NODE) {
     SU2_TYPE::SetDerivative(ObjFunc_Value, SU2_TYPE::GetValue(seeding));
@@ -541,6 +566,28 @@ void CDiscAdjSolver::ExtractAdjoint_Variables(CGeometry *geometry, CConfig *conf
 #else
     Total_Sens_BPress = Local_Sens_BPress;
     Total_Sens_Temp = Local_Sens_Temperature;
+#endif
+
+  }
+
+  if ((config->GetKind_Regime() == INCOMPRESSIBLE) &&
+      (KindDirect_Solver == RUNTIME_FLOW_SYS &&
+       (!config->GetBoolTurbomachinery()))) {
+        
+    su2double Local_Sens_ModVel, Local_Sens_BPress, Local_Sens_Temp;
+
+    Local_Sens_ModVel = SU2_TYPE::GetDerivative(ModVel);
+    Local_Sens_BPress = SU2_TYPE::GetDerivative(BPressure);
+    Local_Sens_Temp   = SU2_TYPE::GetDerivative(Temperature);
+
+#ifdef HAVE_MPI
+    SU2_MPI::Allreduce(&Local_Sens_ModVel, &Total_Sens_ModVel, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    SU2_MPI::Allreduce(&Local_Sens_BPress, &Total_Sens_BPress, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    SU2_MPI::Allreduce(&Local_Sens_Temp,   &Total_Sens_Temp,   1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+#else
+    Total_Sens_ModVel = Local_Sens_ModVel;
+    Total_Sens_BPress = Local_Sens_BPress;
+    Total_Sens_Temp   = Local_Sens_Temp;
 #endif
 
   }
@@ -893,11 +940,6 @@ void CDiscAdjSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfi
   filename = config->GetSolution_AdjFileName();
   restart_filename = config->GetObjFunc_Extension(filename);
 
-  int rank = MASTER_NODE;
-#ifdef HAVE_MPI
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#endif
-
   /*--- Read and store the restart metadata. ---*/
 
   Read_SU2_Restart_Metadata(geometry[MESH_0], config, true, restart_filename);
@@ -924,7 +966,7 @@ void CDiscAdjSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfi
       skipVars += nDim + 2;
     }
     if (incompressible) {
-      skipVars += nDim + 1;
+      skipVars += nDim + 2;
     }
   }
 
@@ -963,17 +1005,8 @@ void CDiscAdjSolver::LoadRestart(CGeometry **geometry, CSolver ***solver, CConfi
   SU2_MPI::Allreduce(&sbuf_NotMatching, &rbuf_NotMatching, 1, MPI_UNSIGNED_SHORT, MPI_SUM, MPI_COMM_WORLD);
 #endif
   if (rbuf_NotMatching != 0) {
-    if (rank == MASTER_NODE) {
-      cout << endl << "The solution file " << filename.data() << " doesn't match with the mesh file!" << endl;
-      cout << "It could be empty lines at the end of the file." << endl << endl;
-    }
-#ifndef HAVE_MPI
-    exit(EXIT_FAILURE);
-#else
-    MPI_Barrier(MPI_COMM_WORLD);
-    MPI_Abort(MPI_COMM_WORLD,1);
-    MPI_Finalize();
-#endif
+    SU2_MPI::Error(string("The solution file ") + filename + string(" doesn't match with the mesh file!\n") +
+                   string("It could be empty lines at the end of the file."), CURRENT_FUNCTION);
   }
 
   /*--- Communicate the loaded solution on the fine grid before we transfer
