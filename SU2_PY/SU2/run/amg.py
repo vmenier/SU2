@@ -8,15 +8,12 @@ import _amgio as amgio
 
 def amg ( config , kind='' ):
     
-    sys.stdout.write("Run Anisotropic Mesh Adaptation\n");
-    
-    # Use pyamg (True) or system call to amg (False) ?
-    amg_python = False;
-    
+    sys.stdout.write("Run Anisotropic Mesh Adaptation\n")
+        
     #--- Check config options related to mesh adaptation
     
     adap_options = ['ADAP_SIZES', 'ADAP_SUBITE', 'ADAP_SENSOR', \
-    'ADAP_BACK', 'ADAP_HMAX', 'ADAP_HMIN', 'ADAP_HGRAD', 'ADAP_RESIDUAL_REDUCTION', 'ADAP_EXT_ITER', 'ADAP_SOURCE']
+    'ADAP_BACK', 'ADAP_HMAX', 'ADAP_HMIN', 'ADAP_HGRAD', 'ADAP_RESIDUAL_REDUCTION', 'ADAP_EXT_ITER', 'ADAP_SOURCE','ADAP_PYTHON']
     required_options = ['ADAP_SIZES', 'ADAP_SUBITE', \
     'ADAP_SENSOR', 'MESH_FILENAME', 'RESTART_SOL', 'MESH_OUT_FILENAME']
     
@@ -28,88 +25,93 @@ def amg ( config , kind='' ):
         raise RuntimeError , err
     
     # Print adap options
-    sys.stdout.write(su2amg.print_adap_options(config, adap_options));
+    sys.stdout.write(su2amg.print_adap_options(config, adap_options))
     
     #--- How many iterative loops? Using what prescribed mesh sizes? 
-        
-    mesh_sizes   = su2amg.get_mesh_sizes(config);
-    sub_iter     = su2amg.get_sub_iterations(config);
+    
+    mesh_sizes   = su2amg.get_mesh_sizes(config)
+    sub_iter     = su2amg.get_sub_iterations(config)
     
     # solver iterations/ residual reduction param for each size level
-    adap_ext_iter = su2amg.get_ext_iter(config);
-    adap_res = su2amg.get_residual_reduction(config);
+    adap_ext_iter = su2amg.get_ext_iter(config)
+    adap_res = su2amg.get_residual_reduction(config)
 
-    adap_sensor = config.ADAP_SENSOR;
-    sensor_avail = ['MACH', 'PRES', 'MACH_PRES'];
+    adap_sensor = config.ADAP_SENSOR
+    sensor_avail = ['MACH', 'PRES', 'MACH_PRES']
     
     if adap_sensor not in sensor_avail:
         raise RuntimeError , 'Unknown adaptation sensor (ADAP_SENSOR option)\n'
         
     if len(mesh_sizes) != len(sub_iter):
         raise RuntimeError , 'Inconsistent number of mesh sizes and sub-iterations'
+        
+        
+    #--- Use the python interface to amg, or the executable?
+    
+    amg_python = su2amg.get_python_amg(config)
     
     #--- Change current directory
     
-    warn = False;
-    adap_dir = './ADAP';
-    cwd = os.getcwd();
+    warn = False
+    adap_dir = './ADAP'
+    cwd = os.getcwd()
         
     if os.path.exists(adap_dir):
         sys.stdout.write('./ADAP exists. Removing old mesh adaptation in 10s.\n')
-        sys.stdout.flush();
-        if warn : time.sleep(10);
-        shutil.rmtree(adap_dir);
+        sys.stdout.flush()
+        if warn : time.sleep(10)
+        shutil.rmtree(adap_dir)
     
-    os.makedirs(adap_dir);
-    os.chdir(adap_dir);
-    sys.stdout.write('The %s folder was deleted\n' % adap_dir);
+    os.makedirs(adap_dir)
+    os.chdir(adap_dir)
+    sys.stdout.write('The %s folder was deleted\n' % adap_dir)
     
-    os.symlink(os.path.join(cwd, config.MESH_FILENAME), config.MESH_FILENAME);
-    os.symlink(os.path.join(cwd, config.SOLUTION_FLOW_FILENAME), config.SOLUTION_FLOW_FILENAME);
+    os.symlink(os.path.join(cwd, config.MESH_FILENAME), config.MESH_FILENAME)
+    os.symlink(os.path.join(cwd, config.SOLUTION_FLOW_FILENAME), config.SOLUTION_FLOW_FILENAME)
     
     #--- Compute initial solution if needed, else link current files
     
-    config_cfd = copy.deepcopy(config);
+    config_cfd = copy.deepcopy(config)
     for opt in adap_options:
         config_cfd.pop(opt, None)
-    config_cfd.LOW_MEMORY_OUTPUT = "NO";
+    config_cfd.LOW_MEMORY_OUTPUT = "NO"
     
     config_cfd.WRT_BINARY_RESTART  = "NO"
     #config_cfd.READ_BINARY_RESTART = "NO"
         
-    current_mesh     = "Initial_mesh";
-    current_solution = "Initial_solution";
+    current_mesh     = "Initial_mesh"
+    current_solution = "Initial_solution"
         
     if config['RESTART_SOL'] == 'NO':
         
-        stdout_hdl = open('ini.stdout','w'); # new targets
-        stderr_hdl = open('ini.stderr','w');
+        stdout_hdl = open('ini.stdout','w') # new targets
+        stderr_hdl = open('ini.stderr','w')
         
-        success = False;
-        val_out = [False];
+        success = False
+        val_out = [False]
         
         sys.stdout.write('Running initial solution. Log file : %s\n' % 'ini.stdout')
         
         try: # run with redirected outputs
             
-            sav_stdout, sys.stdout = sys.stdout, stdout_hdl; 
-            sav_stderr, sys.stderr = sys.stderr, stderr_hdl;
+            sav_stdout, sys.stdout = sys.stdout, stdout_hdl 
+            sav_stderr, sys.stderr = sys.stderr, stderr_hdl
         
-            current_mesh     = config['MESH_FILENAME'];
+            current_mesh     = config['MESH_FILENAME']
             current_solution = "ini_restart_flow.dat"
             
             config_cfd.CONV_FILENAME         = "ini_history"
-            config_cfd.RESTART_FLOW_FILENAME = current_solution;
+            config_cfd.RESTART_FLOW_FILENAME = current_solution
             
-            SU2_CFD(config_cfd);
+            SU2_CFD(config_cfd)
             
         except:
-            sys.stdout = sav_stdout;
-            sys.stderr = sav_stderr;
-            raise;
+            sys.stdout = sav_stdout
+            sys.stderr = sav_stderr
+            raise
         
-        sys.stdout = sav_stdout;
-        sys.stderr = sav_stderr;
+        sys.stdout = sav_stdout
+        sys.stderr = sav_stderr
         
     else:
         required_options=['SOLUTION_FLOW_FILENAME']
@@ -120,12 +122,12 @@ def amg ( config , kind='' ):
                     err += opt + '\n'
             raise RuntimeError , err
         
-        current_mesh     = config['MESH_FILENAME'];
-        current_solution = config['SOLUTION_FLOW_FILENAME'];
+        current_mesh     = config['MESH_FILENAME']
+        current_solution = config['SOLUTION_FLOW_FILENAME']
         
     #--- Check existence of initial mesh, solution
     
-    required_files = [current_mesh,current_solution];
+    required_files = [current_mesh,current_solution]
     
     if not all (os.path.exists(fil) for fil in required_files):
         err = '\n\n## ERROR : Can\'t find:\n'
@@ -137,31 +139,31 @@ def amg ( config , kind='' ):
     #--- Start looping
     
     # Get mesh dimension
-    dim = su2amg.get_su2_dim(current_mesh);
+    dim = su2amg.get_su2_dim(current_mesh)
     if ( dim != 2 and dim != 3 ):
         raise RuntimeError , "Wrong dimension number\n"
     
     #--- AMG parameters
     
-    config_amg = dict();
+    config_amg = dict()
     
     config_amg['hgrad']       = float(config['ADAP_HGRAD'])
     config_amg['hmax']        = float(config['ADAP_HMAX'])
     config_amg['hmin']        = float(config['ADAP_HMIN'])
     config_amg['mesh_in']     = 'current.meshb'
-    config_amg['mesh_out']    = 'current.new.meshb';
+    config_amg['mesh_out']    = 'current.new.meshb'
     config_amg['metric_in']   = ''
     config_amg['sol_in']      = 'current_sensor.solb'
     config_amg['itp_sol_in']  = 'current.solb'
     config_amg['adap_source'] = ''
     
     if 'ADAP_BACK' in config:
-        config_amg['adap_back'] = os.path.join(cwd,config['ADAP_BACK']);
-        #os.symlink(os.path.join(cwd, config.ADAP_BACK), config.ADAP_BACK);
+        config_amg['adap_back'] = os.path.join(cwd,config['ADAP_BACK'])
+        #os.symlink(os.path.join(cwd, config.ADAP_BACK), config.ADAP_BACK)
     else:
-        config_amg['adap_back'] = config['MESH_FILENAME'];
+        config_amg['adap_back'] = config['MESH_FILENAME']
     
-    back_name, back_extension = os.path.splitext(config_amg['adap_back']);
+    back_name, back_extension = os.path.splitext(config_amg['adap_back'])
     
     if not os.path.exists(config_amg['adap_back']):
         raise RuntimeError , "\n\n##ERROR : Can't find back mesh: %s.\n\n" % config_amg['adap_back']
@@ -172,31 +174,34 @@ def amg ( config , kind='' ):
         
     
     if 'ADAP_SOURCE' in config:
-        config_amg['adap_source'] = os.path.join(cwd,config['ADAP_SOURCE']);
+        config_amg['adap_source'] = os.path.join(cwd,config['ADAP_SOURCE'])
     
-    global_iter = 0;
+    global_iter = 0
     
     for iSiz in range(len(mesh_sizes)):
         
-        mesh_size   = int(mesh_sizes[iSiz]);
-        nSub        = int(sub_iter[iSiz]);
+        mesh_size   = int(mesh_sizes[iSiz])
+        nSub        = int(sub_iter[iSiz])
         
         for iSub in range(nSub):
             
             print "Global iter %d : Size %d, sub_ite %d" % (global_iter, mesh_size, iSub)
             
-            config_amg['size']        = mesh_size;
-            config_amg['amg_log']     = 'ite%d.amg.stdout' % (global_iter);
+            config_amg['size']        = mesh_size
+            config_amg['amg_log']     = 'ite%d.amg.stdout' % (global_iter)
             
             #--- Load su2 mesh 
                         
-            mesh = su2amg.read_mesh(current_mesh, current_solution);
+            mesh = su2amg.read_mesh(current_mesh, current_solution)
+            
+            print "done reading"
             
             if not amg_python : 
                 
+                
                 #--- If not using the amg python interface, convert the mesh and make system call
                 
-                su2amg.write_mesh("current.meshb", "current.solb", mesh);
+                su2amg.write_mesh("current.meshb", "current.solb", mesh)
                 
                 if not os.path.exists("current.solb"):
                     raise RuntimeError , "\n##ERROR : Can't find solution.\n"
@@ -204,22 +209,22 @@ def amg ( config , kind='' ):
                     raise RuntimeError , "\n##ERROR : Can't find mesh.\n"
                 
                 #--- Get sensor
-                
-                sensor = su2amg.create_sensor(mesh, adap_sensor);
-                su2amg.write_solution("current_sensor.solb", sensor);
+                                
+                sensor = su2amg.create_sensor(mesh, adap_sensor)
+                su2amg.write_solution("current_sensor.solb", sensor)
                 
                 if not os.path.exists("current_sensor.solb"):
                     raise RuntimeError , "\n##ERROR : Can't find adap sensor.\n"
                 
                 #--- Run amg
                                 
-                sys.stdout.write("Running amg. Log : %s\n" % config_amg['amg_log']);
+                sys.stdout.write("Running amg. Log : %s\n" % config_amg['amg_log'])
                 
                 if os.path.exists("current.itp.solb"):
-                    os.remove("current.itp.solb");
+                    os.remove("current.itp.solb")
                             
                 try :
-                    su2amg.amg_call(config_amg);
+                    su2amg.amg_call(config_amg)
                 except:
                     raise RuntimeError , "\n##ERROR : Call to AMG failed.\n"
                 
@@ -234,16 +239,16 @@ def amg ( config , kind='' ):
                 # Deal with markers
                 
                 save_markers = mesh['markers']
-                del mesh;
+                del mesh
                 
                 # Read Inria mesh
-                mesh = su2amg.read_mesh(config_amg['mesh_out'], "current.itp.solb");
-                mesh['markers'] = save_markers;
+                mesh = su2amg.read_mesh(config_amg['mesh_out'], "current.itp.solb")
+                mesh['markers'] = save_markers
                 
                 current_mesh = "ite%d.su2" % global_iter
                 current_solution = "ite%d.dat" % global_iter    
                 
-                su2amg.write_mesh(current_mesh, current_solution, mesh);
+                su2amg.write_mesh(current_mesh, current_solution, mesh)
                 
                 if not os.path.exists(current_mesh) or not os.path.exists(current_solution) :
                     raise RuntimeError , "\n##ERROR : Conversion to SU2 failed.\n"
@@ -255,17 +260,25 @@ def amg ( config , kind='' ):
                 try :
                     import pyamg 
                 except:
-                    sys.stderr.write("## ERROR : Unable to import pyamg module.\n");
-                    sys.exit(1);
+                    sys.stderr.write("## ERROR : Unable to import pyamg module.\n")
+                    sys.exit(1)
                 
                 #--- Create sensor used to drive the adaptation
                 
-                sensor_wrap = su2amg.create_sensor(mesh, adap_sensor);
+                print "Create sensor"
                 
-                mesh['sensor'] = sensor_wrap['solution'];
+                sensor_wrap = su2amg.create_sensor(mesh, adap_sensor)
+                
+                mesh['sensor'] = sensor_wrap['solution']
+                
+                print "Call python"
                 
                 mesh_new = su2amg.amg_call_python(mesh, config_amg)
-                mesh_new['markers'] = mesh['markers'];
+                
+                
+                print "Done"
+                
+                mesh_new['markers'] = mesh['markers']
                 mesh_new['dimension'] = mesh['dimension']
                  
                 current_mesh = "ite%d.su2" % global_iter
@@ -273,60 +286,64 @@ def amg ( config , kind='' ):
                 
                 del mesh               
                 
-                su2amg.write_mesh(current_mesh, current_solution, mesh_new);
+                
+                print "Write mesh"
+                su2amg.write_mesh(current_mesh, current_solution, mesh_new)
+                
+                print "Done"
                             
             #--- Run su2
             
-            log = 'ite%d.SU2'%global_iter;
-            stdout_hdl = open('%sstdout'%log,'w'); # new targets
-            stderr_hdl = open('%sstderr'%log,'w');
+            log = 'ite%d.SU2'%global_iter
+            stdout_hdl = open('%sstdout'%log,'w') # new targets
+            stderr_hdl = open('%sstderr'%log,'w')
             
-            success = False;
-            val_out = [False];
+            success = False
+            val_out = [False]
             
             sys.stdout.write('Running SU2_CFD. Log file : %s.std[out/err]\n' % log)
         
             try: # run with redirected outputs
             
-                sav_stdout, sys.stdout = sys.stdout, stdout_hdl; 
-                sav_stderr, sys.stderr = sys.stderr, stderr_hdl;
+                sav_stdout, sys.stdout = sys.stdout, stdout_hdl 
+                sav_stderr, sys.stderr = sys.stderr, stderr_hdl
                 
                 current_solution_ini = "ite%d_ini.dat" % global_iter
-                os.rename(current_solution, current_solution_ini);
+                os.rename(current_solution, current_solution_ini)
                 
-                config_cfd.MESH_FILENAME          = current_mesh;
+                config_cfd.MESH_FILENAME          = current_mesh
                 config_cfd.CONV_FILENAME          = "ite%d_history" % global_iter
-                config_cfd.SOLUTION_FLOW_FILENAME = current_solution_ini;
-                config_cfd.RESTART_FLOW_FILENAME  = current_solution;
+                config_cfd.SOLUTION_FLOW_FILENAME = current_solution_ini
+                config_cfd.RESTART_FLOW_FILENAME  = current_solution
                 
-                config_cfd.RESIDUAL_REDUCTION = float(adap_res[iSiz]);
-                config_cfd.EXT_ITER = int(adap_ext_iter[iSiz]);
+                config_cfd.RESIDUAL_REDUCTION = float(adap_res[iSiz])
+                config_cfd.EXT_ITER = int(adap_ext_iter[iSiz])
                 
                 config_cfd.WRT_BINARY_RESTART  = "NO"
                 config_cfd.READ_BINARY_RESTART = "NO"
                 
-                SU2_CFD(config_cfd);
+                SU2_CFD(config_cfd)
                 
                 if not os.path.exists(current_solution) :
                     raise RuntimeError , "\n##ERROR : SU2_CFD Failed.\n"
             
             except:
-                sys.stdout = sav_stdout;
-                sys.stderr = sav_stderr;
-                raise;
+                sys.stdout = sav_stdout
+                sys.stderr = sav_stderr
+                raise
             
-            sys.stdout = sav_stdout;
-            sys.stderr = sav_stderr;
+            sys.stdout = sav_stdout
+            sys.stderr = sav_stderr
             
-            to_remove = ["current.itp.solb", config_amg['mesh_in'], config_amg['mesh_out'], config_amg['sol_in'],config_amg['itp_sol_in']];
+            to_remove = ["current.itp.solb", config_amg['mesh_in'], config_amg['mesh_out'], config_amg['sol_in'],config_amg['itp_sol_in']]
             for fil in to_remove:
-                if os.path.exists(fil) : os.remove(fil);
+                if os.path.exists(fil) : os.remove(fil)
             
-            global_iter += 1;
+            global_iter += 1
     
-    os.rename(current_solution,os.path.join(cwd,config.RESTART_FLOW_FILENAME));
-    os.rename(current_mesh,os.path.join(cwd,config.MESH_OUT_FILENAME));
+    os.rename(current_solution,os.path.join(cwd,config.RESTART_FLOW_FILENAME))
+    os.rename(current_mesh,os.path.join(cwd,config.MESH_OUT_FILENAME))
     
-    sys.stdout.write("\nMesh adaptation successfully ended. Results files:\n");
-    sys.stdout.write("%s\n%s\n\n" % (config.MESH_OUT_FILENAME,config.RESTART_FLOW_FILENAME));
+    sys.stdout.write("\nMesh adaptation successfully ended. Results files:\n")
+    sys.stdout.write("%s\n%s\n\n" % (config.MESH_OUT_FILENAME,config.RESTART_FLOW_FILENAME))
     

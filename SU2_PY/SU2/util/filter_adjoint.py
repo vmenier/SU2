@@ -117,7 +117,7 @@ def process_surface_adjoint( config_filename       ,
                               skip_header = 1      )
     
     # read mesh data
-    mesh_data = libSU2_mesh.Read_Mesh(mesh_filename)
+    mesh_data = libSU2_mesh.(mesh_filename)
     
     # proces adjoint data
     P      = map(int, adj_data[:,0] )
