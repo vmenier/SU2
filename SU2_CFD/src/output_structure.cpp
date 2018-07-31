@@ -4639,7 +4639,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
 	bool thrust = (config[val_iZone]->GetnMarker_Thrust() != 0);			
 		
 	if (thrust) {
-		SetNozzleThrust(solver_container[val_iZone][MESH_0][FLOW_SOL], geometry[val_iZone][FinestMesh], config[val_iZone]);
+		SetNozzleThrust(solver_container[val_iZone][val_iInst][MESH_0][FLOW_SOL], geometry[val_iZone][val_iInst][FinestMesh], config[val_iZone]);
 	}
   
   /*--- Output using only the master node ---*/
@@ -4912,8 +4912,8 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
         }        
         
         if (thermal) {
-          Total_Heat     = solver_container[val_iZone][FinestMesh][FLOW_SOL]->GetTotal_HeatFlux();
-          Total_MaxHeat  = solver_container[val_iZone][FinestMesh][FLOW_SOL]->GetTotal_MaxHeatFlux();
+          Total_Heat     = solver_container[val_iZone][val_iInst][FinestMesh][FLOW_SOL]->GetTotal_HeatFlux();
+          Total_MaxHeat  = solver_container[val_iZone][val_iInst][FinestMesh][FLOW_SOL]->GetTotal_MaxHeatFlux();
         }
         
         if (equiv_area) {
@@ -5229,7 +5229,7 @@ void COutput::SetConvHistory_Body(ofstream *ConvHist_file,
                      Total_CL, Total_CD, Total_CSF, Total_CMx, Total_CMy, Total_CMz, Total_CFx, Total_CFy,
                      Total_CFz, Total_CEff, Total_AoA, Total_Custom_ObjFunc);
 
-            if (thrust) SPRINTF (thrust_coeff, ", %14.8e",  solver_container[val_iZone][FinestMesh][FLOW_SOL]->GetThrust_Nozzle());										
+            if (thrust) SPRINTF (thrust_coeff, ", %14.8e",  solver_container[val_iZone][val_iInst][FinestMesh][FLOW_SOL]->GetThrust_Nozzle());										
 
             if (thermal || heat) SPRINTF (heat_coeff, ", %14.8e, %14.8e, %14.8e",  Total_Heat, Total_MaxHeat, Total_Temperature);
 

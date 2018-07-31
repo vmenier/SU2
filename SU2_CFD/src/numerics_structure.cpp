@@ -1949,7 +1949,6 @@ void CNumerics::GetViscousProjFlux(su2double *val_primvar,
 }
 
 
-
 //Jayant
 void CNumerics::GetViscousProjFlux(su2double *val_primvar, su2double **val_gradprimvar,
                         su2double val_turb_ke, su2double *val_normal,
@@ -2014,16 +2013,8 @@ void CNumerics::GetViscousProjFlux(su2double *val_primvar, su2double **val_gradp
   }
 }
 
-//void CNumerics::GetViscousArtCompProjFlux(su2double **val_gradprimvar, su2double *val_normal, su2double val_laminar_viscosity,
-//    su2double val_eddy_viscosity) {
-//  unsigned short iVar, iDim;
-//  su2double total_viscosity;
-//  
-//=======
-void CNumerics::GetViscousArtCompProjFlux(su2double *val_primvar,
 
-//void CNumerics::GetViscousIncProjFlux(su2double *val_primvar,
-//>>>>>>> 58892c97f8dae8071ebb7fa72f337c11a4ee1edb
+void CNumerics::GetViscousIncProjFlux(su2double *val_primvar,
                                           su2double **val_gradprimvar,
                                           su2double *val_normal,
                                           su2double val_laminar_viscosity,

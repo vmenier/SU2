@@ -4452,15 +4452,13 @@ void CDiscAdjFluidDriver::SetObjFunction(){
           output->SpecialOutput_SonicBoom(solver_container[ZONE_0][INST_0][MESH_0][FLOW_SOL], geometry_container[ZONE_0][INST_0][MESH_0], config_container[ZONE_0], false);
           
         if (config_container[ZONE_0]->GetPlot_Section_Forces())
-
-					output->SpecialOutput_SpanLoad(solver_container[ZONE_0][MESH_0][FLOW_SOL], geometry_container[ZONE_0][MESH_0], config_container[ZONE_0], false);
-
-        if (config_container[ZONE_0]->GetnMarker_Thrust() != 0)
-          output->SetNozzleThrust(solver_container[ZONE_0][MESH_0][FLOW_SOL], geometry_container[ZONE_0][MESH_0], config_container[ZONE_0]);
-				
-
           output->SpecialOutput_SpanLoad(solver_container[ZONE_0][INST_0][MESH_0][FLOW_SOL], geometry_container[ZONE_0][INST_0][MESH_0], config_container[ZONE_0], false);
         
+        if (config_container[ZONE_0]->GetnMarker_Thrust() != 0)
+          output->SetNozzleThrust(solver_container[ZONE_0][INST_0][MESH_0][FLOW_SOL], geometry_container[ZONE_0][INST_0][MESH_0], config_container[ZONE_0]);
+				
+
+         
         break;
     }
   }

@@ -1916,8 +1916,6 @@ inline su2double CConfig::GetURLX(void) {return urlx; }
 
 inline bool CConfig::GetPermute(void) { return permute; }
 
-inline void CConfig::SetMax_Beta(su2double val_Max_Beta) { Max_Beta = val_Max_Beta; }
-
 inline void CConfig::SetMax_Vel2(su2double val_max_vel2) { Max_Vel2 = val_max_vel2; }
 
 inline su2double CConfig::GetMax_Vel2(void) { return Max_Vel2; }
