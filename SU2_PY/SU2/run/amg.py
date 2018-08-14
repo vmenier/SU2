@@ -1,3 +1,40 @@
+#!/usr/bin/env python
+
+## \file adjoint.py
+#  \brief python package for running mesh adaptation using the AMG Inria library
+#  \author Victorien Menier
+#  \version 6.0.0 "Falcon"
+#
+# The current SU2 release has been coordinated by the
+# SU2 International Developers Society <www.su2devsociety.org>
+# with selected contributions from the open-source community.
+#
+# The main research teams contributing to the current release are:
+#  - Prof. Juan J. Alonso's group at Stanford University.
+#  - Prof. Piero Colonna's group at Delft University of Technology.
+#  - Prof. Nicolas R. Gauger's group at Kaiserslautern University of Technology.
+#  - Prof. Alberto Guardone's group at Polytechnic University of Milan.
+#  - Prof. Rafael Palacios' group at Imperial College London.
+#  - Prof. Vincent Terrapon's group at the University of Liege.
+#  - Prof. Edwin van der Weide's group at the University of Twente.
+#  - Lab. of New Concepts in Aeronautics at Tech. Institute of Aeronautics.
+#
+# Copyright 2012-2018, Francisco D. Palacios, Thomas D. Economon,
+#                      Tim Albring, and the SU2 contributors.
+#
+# SU2 is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Lesser General Public
+# License as published by the Free Software Foundation; either
+# version 2.1 of the License, or (at your option) any later version.
+#
+# SU2 is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+# Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public
+# License along with SU2. If not, see <http://www.gnu.org/licenses/>.
+
 import os, sys, shutil, copy, time
 import numpy as np
 
@@ -8,7 +45,7 @@ import _amgio as amgio
 
 def amg ( config , kind='' ):
     
-    sys.stdout.write("Run Anisotropic Mesh Adaptation\n")
+    sys.stdout.write("SU2-AMG Anisotropic Mesh Adaptation\n")
         
     #--- Check config options related to mesh adaptation
     
@@ -90,7 +127,7 @@ def amg ( config , kind='' ):
         success = False
         val_out = [False]
         
-        sys.stdout.write('Running initial solution. Log file : %s\n' % 'ini.stdout')
+        sys.stdout.write('Running initial CFD solution.\n')
         
         try: # run with redirected outputs
             
@@ -104,7 +141,7 @@ def amg ( config , kind='' ):
             config_cfd.RESTART_FLOW_FILENAME = current_solution
             
             SU2_CFD(config_cfd)
-            
+                        
         except:
             sys.stdout = sav_stdout
             sys.stderr = sav_stderr
@@ -124,6 +161,8 @@ def amg ( config , kind='' ):
         
         current_mesh     = config['MESH_FILENAME']
         current_solution = config['SOLUTION_FLOW_FILENAME']
+        
+        sys.stdout.write('Initial CFD solution is provided.\n')
         
     #--- Check existence of initial mesh, solution
     
@@ -171,33 +210,35 @@ def amg ( config , kind='' ):
     if back_extension == ".su2":
         amgio.py_ConvertSU2toInria(config_amg['adap_back'], "", "amg_back")
         config_amg['adap_back'] = "amg_back.meshb"
-        
     
     if 'ADAP_SOURCE' in config:
         config_amg['adap_source'] = os.path.join(cwd,config['ADAP_SOURCE'])
     
     global_iter = 0
     
+    sys.stdout.write("\nStarting mesh adaptation process.\n")
+    
     for iSiz in range(len(mesh_sizes)):
         
         mesh_size   = int(mesh_sizes[iSiz])
         nSub        = int(sub_iter[iSiz])
+                        
+        sys.stdout.write("\nIteration %d - Mesh size coefficient %.1lf\n" % (iSiz, mesh_size))
         
         for iSub in range(nSub):
-            
-            print "Global iter %d : Size %d, sub_ite %d" % (global_iter, mesh_size, iSub)
             
             config_amg['size']        = mesh_size
             config_amg['amg_log']     = 'ite%d.amg.stdout' % (global_iter)
             
+            # Prints
+            pad_cpt = ("(%d/%d)" % (iSub+1, nSub)).ljust(9)
+            pad_nul = "".ljust(9)
+            
             #--- Load su2 mesh 
-                        
+            
             mesh = su2amg.read_mesh(current_mesh, current_solution)
-            
-            print "done reading"
-            
+                                    
             if not amg_python : 
-                
                 
                 #--- If not using the amg python interface, convert the mesh and make system call
                 
@@ -233,7 +274,6 @@ def amg ( config , kind='' ):
                 
                 if not os.path.exists("current.itp.solb"):
                     raise RuntimeError , "\n##ERROR AMG: Solution interpolation failed.\n"            
-            
                 
                 #--- Convert output from Inria mesh format to su2
                 # Deal with markers
@@ -265,33 +305,26 @@ def amg ( config , kind='' ):
                 
                 #--- Create sensor used to drive the adaptation
                 
-                print "Create sensor"
-                
                 sensor_wrap = su2amg.create_sensor(mesh, adap_sensor)
                 
                 mesh['sensor'] = sensor_wrap['solution']
                 
-                print "Call python"
+                sys.stdout.write(' %s Generating adapted mesh using AMG\n' % pad_cpt)
                 
                 mesh_new = su2amg.amg_call_python(mesh, config_amg)
+                                
+                #--- print mesh size
                 
-                
-                print "Done"
-                
+                sys.stdout.write(' %s AMG done: %s\n' % (pad_nul, su2amg.return_mesh_size(mesh_new)))
+                                
                 mesh_new['markers'] = mesh['markers']
                 mesh_new['dimension'] = mesh['dimension']
-                 
+                
                 current_mesh = "ite%d.su2" % global_iter
                 current_solution = "ite%d.dat" % global_iter
-                
-                del mesh               
-                
-                
-                print "Write mesh"
+                                
                 su2amg.write_mesh(current_mesh, current_solution, mesh_new)
                 
-                print "Done"
-                            
             #--- Run su2
             
             log = 'ite%d.SU2'%global_iter
@@ -301,7 +334,7 @@ def amg ( config , kind='' ):
             success = False
             val_out = [False]
             
-            sys.stdout.write('Running SU2_CFD. Log file : %s.std[out/err]\n' % log)
+            sys.stdout.write(' %s Running CFD\n' % pad_nul)
         
             try: # run with redirected outputs
             
@@ -326,6 +359,7 @@ def amg ( config , kind='' ):
                 
                 if not os.path.exists(current_solution) :
                     raise RuntimeError , "\n##ERROR : SU2_CFD Failed.\n"
+                    
             
             except:
                 sys.stdout = sav_stdout
@@ -334,6 +368,23 @@ def amg ( config , kind='' ):
             
             sys.stdout = sav_stdout
             sys.stderr = sav_stderr
+            
+                    
+            #--- Print convergence history
+            
+            plot_format      = config_cfd['OUTPUT_FORMAT']
+            plot_extension   = su2io.get_extension(plot_format)
+            history_filename = config_cfd['CONV_FILENAME'] + plot_extension
+            
+            history = su2io.read_history(history_filename)
+            
+            res_flow = history['Res_Flow[0]']
+            res_cvg = max(res_flow)-min(res_flow)
+            
+            del history
+            
+            sys.stdout.write(' %s CFD done. Residual convergence %.2lf orders of magnitude\n' % (pad_nul, res_cvg))
+            
             
             to_remove = ["current.itp.solb", config_amg['mesh_in'], config_amg['mesh_out'], config_amg['sol_in'],config_amg['itp_sol_in']]
             for fil in to_remove:

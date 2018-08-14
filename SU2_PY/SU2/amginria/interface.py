@@ -3,6 +3,26 @@ import _amgio as amgio
 import numpy as np
 import pyamg
 
+
+def return_mesh_size(mesh):
+    
+    elt_key  = ['xy', 'xyz',  'Triangles', 'Edges', 'Tetrahedra']
+    elt_name = {'xy':'vertices', 'xyz':'vertices',  'Triangles':'triangles', 'Edges':'edges', 'Tetrahedra':'tetrahedra'}
+    
+    tab_out = []
+        
+    for elt in elt_key:
+        
+        if elt not in mesh: continue
+        
+        nbe = len(mesh[elt])
+        
+        if nbe > 0:
+            tab_out.append("%d %s" % (nbe, elt_name[elt]))
+    
+    return ', '.join(map(str, tab_out))
+    
+
 def amg_call(config):
     
     cmd = ''
@@ -160,7 +180,7 @@ def write_mesh(mesh_name, solution_name, mesh):
         Sol = np.array(Sol).reshape(SolSiz*len(Sol)).tolist() 
     else:
         Sol = []
-        
+    
     amgio.py_WriteMesh(mesh_name, solution_name, Ver, Tri, Tet, Edg, Hex, Qua, Pyr, Pri, Sol, Markers, Dim)
     
 
