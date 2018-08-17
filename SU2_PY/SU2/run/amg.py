@@ -223,7 +223,7 @@ def amg ( config , kind='' ):
         mesh_size   = int(mesh_sizes[iSiz])
         nSub        = int(sub_iter[iSiz])
                         
-        sys.stdout.write("\nIteration %d - Mesh size coefficient %.1lf\n" % (iSiz, mesh_size))
+        sys.stdout.write("\nIteration %d/%d - Mesh size coefficient %.1lf\n" % (iSiz+1, len(mesh_sizes), mesh_size))
         
         for iSub in range(nSub):
             
