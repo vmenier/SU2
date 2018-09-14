@@ -73,7 +73,7 @@ def direct ( config ):
         Executes in:
             ./
     """
-    
+        
     # local copy
     konfig = copy.deepcopy(config)
 
