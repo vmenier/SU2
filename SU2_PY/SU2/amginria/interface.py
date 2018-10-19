@@ -1,5 +1,5 @@
 import os, sys
-import _amgio as amgio
+#import _amgio as amgio
 import numpy as np
 import pyamg
 
@@ -67,7 +67,6 @@ def amg_call_python(mesh, config):
      'mesh_in': 'current.meshb', 'mesh_out': 'current.new.meshb'}
     ''' 
     
-    
     if 'xy' in mesh:    mesh['xy']  = mesh['xy'].tolist()
     if 'xyz' in mesh:   mesh['xyz'] = mesh['xyz'].tolist()
     
@@ -99,8 +98,9 @@ def read_mesh(mesh_name, solution_name):
     
     Markers = []
     
-    amgio.py_ReadMesh(mesh_name, solution_name, Ver, Tri, Tet, Edg, Hex, Qua, Pyr, Pri, Sol, SolTag,  Markers)
-        
+    pyamg.read_mesh_to_lists(mesh_name, solution_name, Ver, Tri, Tet, Edg, Hex, Qua, Pyr, Pri, Sol, SolTag,  Markers)
+    #amgio.py_ReadMesh(mesh_name, solution_name, Ver, Tri, Tet, Edg, Hex, Qua, Pyr, Pri, Sol, SolTag,  Markers)
+    
     NbrTet = len(Tet)/5
     Tet = np.reshape(Tet,(NbrTet, 5)).astype(int)
     
@@ -181,7 +181,8 @@ def write_mesh(mesh_name, solution_name, mesh):
     else:
         Sol = []
     
-    amgio.py_WriteMesh(mesh_name, solution_name, Ver, Tri, Tet, Edg, Hex, Qua, Pyr, Pri, Sol, Markers, Dim)
+    pyamg.write_mesh_from_lists(mesh_name, solution_name, Ver, Tri, Tet, Edg, Hex, Qua, Pyr, Pri, Sol, Markers, Dim)
+    #amgio.py_WriteMesh(mesh_name, solution_name, Ver, Tri, Tet, Edg, Hex, Qua, Pyr, Pri, Sol, Markers, Dim)
     
 
 def write_solution(solution_name, solution):
@@ -202,8 +203,9 @@ def write_solution(solution_name, solution):
     else:
         sys.stderr.write("## ERROR write_solution : No solution.\n")
         sys.exit(1)
-        
-    amgio.py_WriteSolution(solution_name, Ver, Sol, solution_tag, NbrVer, Dim)
+    
+    pyamg.write_sol_from_lists(solution_name, Ver, Sol, solution_tag, NbrVer, Dim)
+    #amgio.py_WriteSolution(solution_name, Ver, Sol, solution_tag, NbrVer, Dim)
 
 
 def create_sensor(solution, sensor):

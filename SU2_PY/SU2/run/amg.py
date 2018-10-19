@@ -41,11 +41,12 @@ import numpy as np
 from .. import io   as su2io
 from .. import amginria as su2amg
 from interface import CFD as SU2_CFD
-import _amgio as amgio
 
 def amg ( config , kind='' ):
     
     sys.stdout.write("SU2-AMG Anisotropic Mesh Adaptation\n")
+    
+    #--- TODO: Check pyamg version compatibility
         
     #--- Check config options related to mesh adaptation
     
@@ -81,7 +82,6 @@ def amg ( config , kind='' ):
         
     if len(mesh_sizes) != len(sub_iter):
         raise RuntimeError , 'Inconsistent number of mesh sizes and sub-iterations'
-        
         
     #--- Use the python interface to amg, or the executable?
     
@@ -208,7 +208,11 @@ def amg ( config , kind='' ):
         raise RuntimeError , "\n\n##ERROR : Can't find back mesh: %s.\n\n" % config_amg['adap_back']
     
     if back_extension == ".su2":
-        amgio.py_ConvertSU2toInria(config_amg['adap_back'], "", "amg_back")
+        
+        pyamg.su2_to_libmeshb(config_amg['adap_back'], "", "amg_back")
+        
+        #import _amgio as amgio
+        #amgio.py_ConvertSU2toInria(config_amg['adap_back'], "", "amg_back")
         config_amg['adap_back'] = "amg_back.meshb"
     
     if 'ADAP_SOURCE' in config:
@@ -233,12 +237,11 @@ def amg ( config , kind='' ):
             # Prints
             pad_cpt = ("(%d/%d)" % (iSub+1, nSub)).ljust(9)
             pad_nul = "".ljust(9)
-            
-            #--- Load su2 mesh 
-            
-            mesh = su2amg.read_mesh(current_mesh, current_solution)
-                                    
+                                       
             if not amg_python : 
+                
+                #--- Load su2 mesh 
+                mesh = su2amg.read_mesh(current_mesh, current_solution)
                 
                 #--- If not using the amg python interface, convert the mesh and make system call
                 
@@ -293,15 +296,17 @@ def amg ( config , kind='' ):
                 if not os.path.exists(current_mesh) or not os.path.exists(current_solution) :
                     raise RuntimeError , "\n##ERROR : Conversion to SU2 failed.\n"
 
-            else :
-                
-                #--- Use pyAmg interface
-                
+            else : # Use pyAmg interface
+                                
                 try :
                     import pyamg 
                 except:
                     sys.stderr.write("## ERROR : Unable to import pyamg module.\n")
                     sys.exit(1)
+                    
+                #--- Load su2 mesh 
+                
+                mesh = su2amg.read_mesh(current_mesh, current_solution)
                 
                 #--- Create sensor used to drive the adaptation
                 
